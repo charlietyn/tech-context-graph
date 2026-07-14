@@ -1,0 +1,9 @@
+/.dart_tool/
+/.packages
+/build/
+/coverage/
+/android/.gradle/
+/android/app/build/
+/ios/Pods/
+*.g.dart
+*.freezed.dart

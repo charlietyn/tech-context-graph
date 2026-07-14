@@ -1,0 +1,17 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.65", fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#F7F9FC", color="#345995", fontname="Arial", fontsize=11, margin="0.14,0.08"];
+  edge [color="#52616B", fontname="Arial", fontsize=9, arrowsize=0.75];
+
+  n0 [label="Global registry", fillcolor="#EAF2FF"];
+  n1 [label="Workspace marker", fillcolor="#F7F9FC"];
+  n2 [label="Editable YAML", fillcolor="#F7F9FC"];
+  n3 [label="SQLite state", fillcolor="#F7F9FC"];
+  n4 [label="Graph outputs", fillcolor="#F7F9FC"];
+  n5 [label="Logs and reports", fillcolor="#EAF2FF"];
+  n0 -> n1 [label="find workspace"];
+  n1 -> n2 [label="identity + settings"];
+  n2 -> n3 [label="sync roots/options"];
+  n3 -> n4 [label="inspection metadata"];
+  n3 -> n5 [label="history"];
+}

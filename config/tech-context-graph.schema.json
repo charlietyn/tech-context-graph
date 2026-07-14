@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tech-context-graph.local/schemas/tech-context-graph.schema.json",
+  "title": "Tech Context Graph Workspace Configuration",
+  "type": "object",
+  "required": ["version", "workspace", "ui", "repository_discovery", "graphify", "security", "persistence"],
+  "properties": {
+    "version": { "const": 4 },
+    "workspace": {
+      "type": "object",
+      "required": ["id", "name", "paths"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "paths": {
+          "type": "object",
+          "required": ["database", "logs", "graphs", "reports"],
+          "properties": {
+            "database": { "type": "string" },
+            "logs": { "type": "string" },
+            "graphs": { "type": "string" },
+            "reports": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "language": { "enum": ["en", "es"] },
+        "color": { "enum": ["auto", "always", "never"] },
+        "confirm_before_scan": { "type": "boolean" },
+        "confirm_before_inspection": { "type": "boolean" },
+        "show_advanced_actions": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "repository_discovery": {
+      "type": "object",
+      "required": ["default_max_depth", "default_min_confidence", "maximum_directories", "roots"],
+      "properties": {
+        "default_max_depth": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "default_min_confidence": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maximum_directories": { "type": "integer", "minimum": 100 },
+        "stop_at_detected_repository": { "type": "boolean" },
+        "include_unknown_git_repositories": { "type": "boolean" },
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "enabled": { "type": "boolean" },
+              "max_depth": { "type": "integer", "minimum": 1, "maximum": 30 },
+              "min_confidence": { "type": "integer", "minimum": 1, "maximum": 100 },
+              "role": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "graphify": {
+      "type": "object",
+      "required": ["executable", "semantic"],
+      "properties": {
+        "executable": { "type": "string", "minLength": 1 },
+        "code_only": { "type": "boolean" },
+        "force_rebuild": { "type": "boolean" },
+        "query_log_disabled": { "type": "boolean" },
+        "semantic": {
+          "type": "object",
+          "required": ["backend", "mode"],
+          "properties": {
+            "backend": { "type": ["string", "null"] },
+            "model": { "type": ["string", "null"] },
+            "mode": { "enum": ["deep", "standard"] },
+            "token_budget": { "type": "integer", "minimum": 1000 },
+            "max_concurrency": { "type": "integer", "minimum": 1 },
+            "api_timeout": { "type": "integer", "minimum": 30 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "security": {
+      "type": "object",
+      "required": ["allow_external_llm", "block_sensitive_sources", "scan_secrets"],
+      "properties": {
+        "allow_external_llm": { "type": "boolean" },
+        "block_sensitive_sources": { "type": "boolean" },
+        "scan_secrets": { "type": "boolean" },
+        "copy_raw_sources": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "persistence": {
+      "type": "object",
+      "required": ["driver", "file", "artifact_storage"],
+      "properties": {
+        "driver": { "enum": ["sqlite"] },
+        "file": { "type": "string" },
+        "artifact_storage": { "enum": ["filesystem"] }
+      },
+      "additionalProperties": false
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": { "enum": ["technology", "backend", "frontend", "mobile", "subsystem", "infrastructure", "library"] },
+          "category": { "type": "string" },
+          "technology": { "type": ["string", "null"] },
+          "path": { "type": "string" },
+          "graph_output": { "type": "string" },
+          "ignore_profile": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

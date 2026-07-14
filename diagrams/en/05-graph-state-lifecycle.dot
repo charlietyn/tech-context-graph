@@ -1,0 +1,20 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.65", fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#F7F9FC", color="#345995", fontname="Arial", fontsize=11, margin="0.14,0.08"];
+  edge [color="#52616B", fontname="Arial", fontsize=9, arrowsize=0.75];
+
+  n0 [label="ACCEPTED", fillcolor="#EAF2FF"];
+  n1 [label="NEVER", fillcolor="#F7F9FC"];
+  n2 [label="RUNNING", fillcolor="#F7F9FC"];
+  n3 [label="READY", fillcolor="#F7F9FC"];
+  n4 [label="STALE", fillcolor="#F7F9FC"];
+  n5 [label="FAILED", fillcolor="#F7F9FC"];
+  n6 [label="MISSING", fillcolor="#EAF2FF"];
+  n0 -> n1;
+  n1 -> n2;
+  n2 -> n3;
+  n3 -> n4 [label="source changed"];
+  n4 -> n2 [label="update"];
+  n2 -> n5 [label="error"];
+  n3 -> n6 [label="artifact removed"];
+}

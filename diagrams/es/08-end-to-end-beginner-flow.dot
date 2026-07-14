@@ -1,0 +1,21 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.65", fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#F7F9FC", color="#345995", fontname="Arial", fontsize=11, margin="0.14,0.08"];
+  edge [color="#52616B", fontname="Arial", fontsize=9, arrowsize=0.75];
+
+  n0 [label="Elegir workspace", fillcolor="#EAF2FF"];
+  n1 [label="Añadir raíces", fillcolor="#F7F9FC"];
+  n2 [label="Escanear", fillcolor="#F7F9FC"];
+  n3 [label="Revisar candidatos", fillcolor="#F7F9FC"];
+  n4 [label="Seleccionar repositorios", fillcolor="#F7F9FC"];
+  n5 [label="Crear grafos", fillcolor="#F7F9FC"];
+  n6 [label="Consultar grafo", fillcolor="#F7F9FC"];
+  n7 [label="Actualizar si está stale", fillcolor="#EAF2FF"];
+  n0 -> n1;
+  n1 -> n2;
+  n2 -> n3;
+  n3 -> n4;
+  n4 -> n5;
+  n5 -> n6;
+  n6 -> n7;
+}

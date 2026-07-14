@@ -1,0 +1,9 @@
+# PrimeVue is a monorepo. The apps tree contains showcases, documentation
+# components and Volt demos; these dominate the graph without describing the
+# architecture of the published PrimeVue packages.
+/apps/
+
+# Generated package artifacts.
+**/.vitepress/cache/
+**/.vitepress/dist/
+**/api.json

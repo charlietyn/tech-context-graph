@@ -1,0 +1,74 @@
+{
+  "name": "tech-context-graph",
+  "version": "4.0.0",
+  "description": "Workspace-first Clack and SQLite control plane for discovering, inspecting and querying technology repositories with Graphify.",
+  "private": false,
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "tech-context-graph": "dist/main.js",
+    "tcg": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "config",
+    "scripts",
+    "ignore",
+    "docs",
+    "diagrams",
+    "README.md",
+    "QUICK_START.md",
+    "QUICK_START_ES.md",
+    "CONFIGURATION_REFERENCE.md",
+    "CONFIGURATION_REFERENCE_ES.md",
+    "INSTALLATION.md",
+    "ROADMAP.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prebuild": "node scripts/clean-dist.cjs",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "test": "jest --runInBand",
+    "test:all": "npm test && npm run build",
+    "lint:types": "tsc -p tsconfig.json --noEmit",
+    "postinstall": "node scripts/postinstall-message.cjs"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/core": "^11.1.28",
+    "ajv": "^8.20.0",
+    "chalk": "^4.1.2",
+    "nest-commander": "^3.20.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sql.js": "^1.13.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.28",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.15.0",
+    "@types/sql.js": "^1.4.9",
+    "jest": "^30.0.5",
+    "ts-jest": "^29.4.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "graphify",
+    "clack",
+    "sqlite",
+    "cli",
+    "repository-discovery",
+    "knowledge-graph",
+    "workspace-manager",
+    "technology-catalog"
+  ]
+}

@@ -1,0 +1,123 @@
+# -----------------------------------------------------------------------------
+# Operating systems
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# -----------------------------------------------------------------------------
+# Editors and local IDE state
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+.history/
+*.code-workspace
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Secrets and machine-specific environment files
+# Keep the documented example in source control.
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.mcp.json
+
+# -----------------------------------------------------------------------------
+# Node.js and TypeScript
+# -----------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+pip-wheel-metadata/
+*.egg-info/
+.eggs/
+
+# -----------------------------------------------------------------------------
+# Logs, databases, temporary files and local packages
+# -----------------------------------------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.db-journal
+*.tgz
+
+# Generated release inventories; regenerate them for an actual release.
+/CHECKSUMS.sha256
+/MANIFEST.txt
+
+# -----------------------------------------------------------------------------
+# Tech Context Graph local workspace state
+# These patterns are anchored to the repository root so public fixtures such as
+# examples/**/knowledge remain trackable.
+# -----------------------------------------------------------------------------
+/.codex/
+/.tcg/
+/.tcg-install/
+/.pcx/
+/context-pack/
+/knowledge/
+/graphify-out/
+/tech-graphify-out/
+/tech-context-graph.workspace.json
+/tech-context-graph.yaml
+
+# Local planning and generated binary manuals are intentionally not public.
+/internal-notes/
+/manual/
+
+# Reproducible raster exports; keep the editable DOT and scalable SVG sources.
+/diagrams/**/*.png
+
+# Generated manual rendering intermediates, should manual/ ever be force-added.
+**/_rendered/

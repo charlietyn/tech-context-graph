@@ -1,0 +1,12 @@
+# Never scan real exports containing rows.
+**/*data*.sql
+**/*full-dump*.sql
+**/*production*.sql
+**/*.backup
+**/*.dump
+**/*.bak
+
+# Include schema-only snapshots intentionally.
+!**/schema.sql
+!**/*schema*.sql
+!**/*.ddl

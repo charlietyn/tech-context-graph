@@ -1,0 +1,27 @@
+# Next.js is a very large monorepo. Keep production framework code and native
+# bundler code, while excluding fixtures and validation corpora.
+/test/
+/examples/
+/docs/
+/errors/
+/evals/
+/bench/
+/.github/
+/.devcontainer/
+/contributing/
+/skills/
+
+# The official repository also contains Turbopack and Rust crates. The managed
+# Next.js technology graph focuses on the published framework package; those
+# subsystems should be registered and inspected independently.
+/*
+!/packages/
+!/packages/next/
+!/packages/next/**
+
+# Keep these after the negations above: .graphifyignore is last-match-wins.
+**/__tests__/
+**/test/
+**/tests/
+**/*.test.*
+**/*.spec.*

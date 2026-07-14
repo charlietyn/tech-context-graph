@@ -1,0 +1,23 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.65", fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#F7F9FC", color="#345995", fontname="Arial", fontsize=11, margin="0.14,0.08"];
+  edge [color="#52616B", fontname="Arial", fontsize=9, arrowsize=0.75];
+
+  n0 [label="Necesita una carpeta", fillcolor="#EAF2FF"];
+  n1 [label="Navegar", fillcolor="#F7F9FC"];
+  n2 [label="Pegar ruta completa", fillcolor="#F7F9FC"];
+  n3 [label="Carpetas recientes", fillcolor="#F7F9FC"];
+  n4 [label="Usar directorio actual
+avanzado", fillcolor="#F7F9FC"];
+  n5 [label="Validar", fillcolor="#F7F9FC"];
+  n6 [label="Confirmar", fillcolor="#EAF2FF"];
+  n0 -> n1;
+  n0 -> n2;
+  n0 -> n3;
+  n0 -> n4;
+  n1 -> n5;
+  n2 -> n5;
+  n3 -> n5;
+  n4 -> n5;
+  n5 -> n6;
+}

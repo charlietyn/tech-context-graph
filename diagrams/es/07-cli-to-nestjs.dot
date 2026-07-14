@@ -1,0 +1,22 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.25", nodesep="0.45", ranksep="0.65", fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#F7F9FC", color="#345995", fontname="Arial", fontsize=11, margin="0.14,0.08"];
+  edge [color="#52616B", fontname="Arial", fontsize=9, arrowsize=0.75];
+
+  n0 [label="CLI Clack", fillcolor="#EAF2FF"];
+  n1 [label="Servicios de aplicación", fillcolor="#F7F9FC"];
+  n2 [label="Puertos", fillcolor="#F7F9FC"];
+  n3 [label="CLI Graphify", fillcolor="#F7F9FC"];
+  n4 [label="SQLite", fillcolor="#F7F9FC"];
+  n5 [label="Futura API NestJS", fillcolor="#F7F9FC"];
+  n6 [label="Futuro worker", fillcolor="#F7F9FC"];
+  n7 [label="PostgreSQL", fillcolor="#EAF2FF"];
+  n0 -> n1;
+  n1 -> n2;
+  n2 -> n3;
+  n2 -> n4;
+  n5 -> n1;
+  n6 -> n1;
+  n6 -> n3;
+  n5 -> n7;
+}

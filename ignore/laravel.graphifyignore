@@ -1,0 +1,11 @@
+/vendor/
+/node_modules/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/logs/
+/bootstrap/cache/
+/public/build/
+/public/hot
+/.phpunit.cache/
+/.phpunit.result.cache

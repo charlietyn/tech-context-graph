@@ -1,0 +1,33 @@
+# Managed graph outputs must never scan themselves.
+**/graphify-out/
+**/tech-graphify-out/
+**/.graphify/
+
+# Dependencies and generated framework/compiler outputs.
+**/node_modules/
+**/vendor/
+**/dist/
+**/build/
+**/out/
+**/.output/
+**/.next/
+**/.nuxt/
+**/.turbo/
+**/target/
+**/coverage/
+**/*.tsbuildinfo
+**/*.map
+**/*.min.js
+**/*.min.css
+
+# Validation corpora add volume but do not describe production architecture.
+**/__tests__/
+**/test/
+**/tests/
+**/__fixtures__/
+**/fixtures/
+**/__snapshots__/
+**/snapshots/
+**/*.test.*
+**/*.spec.*
+**/*.stories.*

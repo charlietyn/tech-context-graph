@@ -1,0 +1,84 @@
+# Tech Context Graph 4.0
+# This is the editable source of truth for workspace behavior.
+# Runtime history, inspections and detected repositories are stored in SQLite.
+version: 4
+
+workspace:
+  id: company-technology-catalog
+  name: Company Technology Catalog
+  description: Shared catalog of technology repositories and Graphify graphs.
+  paths:
+    database: ./.tcg/state.sqlite
+    logs: ./.tcg/logs
+    graphs: ./tech-graphify-out
+    reports: ./context-pack
+
+ui:
+  language: en
+  color: auto                 # auto | always | never
+  confirm_before_scan: true
+  confirm_before_inspection: true
+  show_advanced_actions: false
+
+repository_discovery:
+  default_max_depth: 7
+  default_min_confidence: 60
+  maximum_directories: 25000
+  stop_at_detected_repository: true
+  include_unknown_git_repositories: true
+
+  # These roots are always chosen explicitly by a user or administrator.
+  # No user directory, Documents folder or drive is assumed.
+  roots: []
+
+  # Example root (replace `roots: []` with this list):
+  # roots:
+  #   - path: D:/Development/Backend
+  #     enabled: true
+  #     max_depth: 7
+  #     min_confidence: 60
+  #     role: technology
+  #   - path: E:/MobileProjects
+  #     enabled: true
+  #     max_depth: 5
+  #     min_confidence: 65
+  #     role: technology
+
+graphify:
+  executable: graphify
+  code_only: true
+  force_rebuild: false
+  query_log_disabled: true
+  semantic:
+    backend: ollama
+    model: null
+    mode: deep
+    token_budget: 10000
+    max_concurrency: 2
+    api_timeout: 900
+
+security:
+  allow_external_llm: false
+  block_sensitive_sources: true
+  scan_secrets: true
+  copy_raw_sources: true
+
+persistence:
+  driver: sqlite
+  file: ./.tcg/state.sqlite
+  artifact_storage: filesystem
+
+# Manual repositories are optional. The normal beginner flow discovers and
+# accepts repositories from the CLI. Manual entries are useful for exceptions.
+projects: {}
+
+# Manual repository example (replace `projects: {}` with this mapping):
+# projects:
+#   shared-auth-library:
+#     type: library
+#     category: library
+#     technology: typescript
+#     path: D:/Libraries/shared-auth
+#     graph_output: ./tech-graphify-out/technologies/shared-auth-library
+#     ignore_profile: common
+#     enabled: true

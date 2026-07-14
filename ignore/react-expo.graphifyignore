@@ -1,0 +1,10 @@
+/node_modules/
+/.expo/
+/.expo-shared/
+/dist/
+/build/
+/coverage/
+/android/.gradle/
+/android/app/build/
+/ios/Pods/
+*.tsbuildinfo
