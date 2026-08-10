@@ -36,6 +36,13 @@ export class SqliteMigrationService {
         category TEXT NOT NULL,
         technology TEXT NOT NULL,
         technology_label TEXT NOT NULL,
+        artifact_kind TEXT NOT NULL DEFAULT 'unknown',
+        package_ecosystem TEXT NOT NULL DEFAULT 'unknown',
+        package_name TEXT,
+        package_version TEXT,
+        technology_version TEXT,
+        technology_constraints_json TEXT NOT NULL DEFAULT '[]',
+        classification_evidence_json TEXT NOT NULL DEFAULT '[]',
         confidence INTEGER NOT NULL,
         markers_json TEXT NOT NULL,
         git_repository INTEGER NOT NULL DEFAULT 0,
@@ -78,6 +85,13 @@ export class SqliteMigrationService {
       );
     `);
     this.ensureColumn(db, 'repositories', 'catalog_status', "TEXT NOT NULL DEFAULT 'ACCEPTED'");
+    this.ensureColumn(db, 'repositories', 'artifact_kind', "TEXT NOT NULL DEFAULT 'unknown'");
+    this.ensureColumn(db, 'repositories', 'package_ecosystem', "TEXT NOT NULL DEFAULT 'unknown'");
+    this.ensureColumn(db, 'repositories', 'package_name', 'TEXT');
+    this.ensureColumn(db, 'repositories', 'package_version', 'TEXT');
+    this.ensureColumn(db, 'repositories', 'technology_version', 'TEXT');
+    this.ensureColumn(db, 'repositories', 'technology_constraints_json', "TEXT NOT NULL DEFAULT '[]'");
+    this.ensureColumn(db, 'repositories', 'classification_evidence_json', "TEXT NOT NULL DEFAULT '[]'");
     this.ensureMigration(db, 1);
     this.ensureMigration(db, 2);
     this.ensureMigration(db, 3, () => {
@@ -96,6 +110,71 @@ export class SqliteMigrationService {
         '\\tech-graphify-out\\graph.json','\\graphify-out\\graph.json'
       ) WHERE graph_json_path IS NOT NULL`);
     });
+    this.ensureMigration(db, 5, () => {
+      db.run(`UPDATE repositories SET artifact_kind='library' WHERE role='library' AND artifact_kind='unknown'`);
+    });
+    this.ensureMigration(db, 6, () => this.migrateVersionedLegacyCores(db));
+    this.ensureMigration(db, 7, () => {
+      const statement = db.prepare(`SELECT id,technology FROM repositories
+        WHERE role='technology' AND artifact_kind='unknown' AND technology<>'unknown' AND repo_key=technology`);
+      const rows: Array<{ id: string; technology: string }> = [];
+      try {
+        while (statement.step()) {
+          const row = statement.getAsObject();
+          rows.push({ id: String(row.id), technology: String(row.technology) });
+        }
+      } finally {
+        statement.free();
+      }
+      for (const row of rows) {
+        const key = `${row.technology}-core-unknown`;
+        const collision = db.prepare('SELECT 1 FROM repositories WHERE repo_key=? AND id<>? LIMIT 1', [key, row.id]);
+        try {
+          if (collision.step()) continue;
+        } finally {
+          collision.free();
+        }
+        db.run(`UPDATE repositories SET repo_key=?,artifact_kind='core',classification_evidence_json=?,updated_at=?
+          WHERE id=?`, [key, JSON.stringify(['legacy-core:version-unavailable']), new Date().toISOString(), row.id]);
+      }
+    });
+  }
+
+  private migrateVersionedLegacyCores(db: Database): void {
+    const statement = db.prepare(`SELECT id,repo_key,path,technology,graph_output
+      FROM repositories
+      WHERE role='technology' AND artifact_kind='unknown' AND technology<>'unknown'`);
+    const rows: Array<Record<string, unknown>> = [];
+    try {
+      while (statement.step()) rows.push(statement.getAsObject());
+    } finally {
+      statement.free();
+    }
+    for (const row of rows) {
+      const sourcePath = String(row.path ?? '');
+      const versions = [...sourcePath.matchAll(/(?:^|[\\/])v?(\d{1,3})(?=[\\/]|$)/gi)];
+      const version = versions.at(-1)?.[1];
+      if (!version) continue;
+      const id = String(row.id);
+      const technology = String(row.technology);
+      const key = `${technology}-core-${version}`;
+      const collision = db.prepare('SELECT 1 FROM repositories WHERE repo_key=? AND id<>? LIMIT 1', [key, id]);
+      let occupied = false;
+      try {
+        occupied = collision.step();
+      } finally {
+        collision.free();
+      }
+      if (occupied) continue;
+      db.run(`UPDATE repositories SET repo_key=?,artifact_kind='core',technology_version=?,
+        classification_evidence_json=?,updated_at=? WHERE id=?`, [
+        key,
+        version,
+        JSON.stringify([`legacy-path-version:${version}`]),
+        new Date().toISOString(),
+        id,
+      ]);
+    }
   }
 
   private ensureColumn(db: Database, table: string, column: string, definition: string): void {

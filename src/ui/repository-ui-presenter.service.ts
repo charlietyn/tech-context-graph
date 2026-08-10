@@ -46,6 +46,48 @@ export class RepositoryUiPresenterService {
     return lines;
   }
 
+  technologyDetails(repositories: Array<{
+    key: string;
+    technology: string;
+    technologyLabel: string;
+    artifactKind: string;
+    inspectionStatus: string;
+    technologyVersion?: string;
+    technologyConstraints: string[];
+  }>): string[] {
+    const groups = new Map<string, typeof repositories>();
+    const unclassified: typeof repositories = [];
+    for (const repository of repositories) {
+      if (repository.technology === 'unknown') {
+        unclassified.push(repository);
+        continue;
+      }
+      const group = groups.get(repository.technologyLabel) ?? [];
+      group.push(repository);
+      groups.set(repository.technologyLabel, group);
+    }
+    const lines: string[] = [];
+    for (const [technology, members] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      lines.push(`- ${technology}: ${members.length}`);
+      for (const member of members.sort((a, b) => a.key.localeCompare(b.key))) {
+        const compatibility = member.technologyVersion
+          ? ` · version ${member.technologyVersion}`
+          : member.technologyConstraints.length
+            ? ` · compatible ${member.technologyConstraints.join(', ')}`
+            : '';
+        lines.push(`  ${this.statusSymbol(member.inspectionStatus)} ${member.key} [${member.artifactKind}]${compatibility}`);
+      }
+    }
+    if (unclassified.length > 0) {
+      lines.push(`- Unclassified: ${unclassified.length}`);
+      for (const member of unclassified.sort((a, b) => a.key.localeCompare(b.key))) {
+        lines.push(`  ${this.statusSymbol(member.inspectionStatus)} ${member.key}`);
+      }
+      lines.push(`⚠ ${unclassified.length} ${unclassified.length === 1 ? 'repository requires' : 'repositories require'} technology and category configuration.`);
+    }
+    return lines;
+  }
+
   statusSymbol(status: string): string {
     return STATUS_SYMBOL[status] ?? '?';
   }
@@ -118,6 +160,14 @@ export class RepositoryUiPresenterService {
       `${this.statusSymbol(repository.inspectionStatus)} Graph status: ${this.statusLabel(repository.inspectionStatus)}`,
       `Catalog status: ${repository.catalogStatus}`,
       `Technology: ${repository.technologyLabel}`,
+      `Kind: ${repository.artifactKind}`,
+      repository.packageName
+        ? `Package: ${repository.packageName}${repository.packageVersion ? `@${repository.packageVersion}` : ''}`
+        : '',
+      repository.technologyVersion ? `Technology version: ${repository.technologyVersion}` : '',
+      repository.technologyConstraints.length
+        ? `Compatible technology versions: ${repository.technologyConstraints.join(', ')}`
+        : '',
       `Category: ${repository.category}`,
       `Path: ${repository.path}`,
       `Detection confidence: ${repository.confidence}%`,

@@ -91,7 +91,7 @@ export class ConsoleUiService {
       `Repository roots: ${roots.filter((item) => item.enabled).length} enabled / ${roots.length} total`,
       `Accepted repositories: ${accepted.length}`,
       `Awaiting review: ${detected.length}`,
-      `Graphs: ${counts.READY ?? 0} ready · ${counts.STALE ?? 0} stale · ${counts.NEVER ?? 0} never inspected · ${counts.FAILED ?? 0} failed`,
+      `Graphs: ${counts.READY ?? 0} ready · ${counts.STALE ?? 0} stale · ${counts.NEVER ?? 0} never inspected · ${counts.FAILED ?? 0} failed · ${counts.MISSING ?? 0} missing`,
       `Graphify: ${this.graphify.isAvailable() ? this.graphify.version() : 'not found'}`,
     ].join('\n'), 'Current workspace');
   }
@@ -136,6 +136,7 @@ export class ConsoleUiService {
       allowCreate: false,
       includeCurrentDirectory: false,
       recentPaths: (await this.roots.list(root)).map((item) => item.path),
+      useCurrentLabel: 'Use this folder as the repository search folder',
     });
     if (!folder) return undefined;
     const maxDepthText = String(await this.prompts.requireValue(await clack.text({
@@ -475,7 +476,7 @@ export class ConsoleUiService {
       ...['NEVER', 'READY', 'STALE', 'FAILED', 'MISSING'].map((status) => `${this.presenter.statusSymbol(status)} ${this.presenter.statusLabel(status)}: ${counts.get(status) ?? 0}`),
       '',
       'By technology:',
-      ...this.presenter.technologySummary(repositories),
+      ...this.presenter.technologyDetails(repositories),
     ].join('\n'), 'Catalog status');
   }
 

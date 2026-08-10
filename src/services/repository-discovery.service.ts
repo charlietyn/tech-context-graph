@@ -20,6 +20,11 @@ import {
 import { TechnologyCatalogService } from './technology-catalog.service';
 import { WorkspaceConfigService } from './config.service';
 import { technologyMemberGraphOutput } from './graph-output-path';
+import {
+  classifyRepositoryManifest,
+  packageKey,
+  readRepositoryManifest,
+} from './repository-manifest.service';
 
 export interface DiscoverRepositoriesOptions {
   maxDepth?: number;
@@ -97,6 +102,33 @@ export class RepositoryDiscoveryService {
     return report;
   }
 
+  /** Detect exactly one repository without walking children; used by automation-friendly manual add. */
+  detectRepository(
+    workspaceRoot: string,
+    directoryInput: string,
+    options: Pick<DiscoverRepositoriesOptions, 'minConfidence' | 'role'> = {},
+  ): RepositoryCandidate | null {
+    const directory = resolve(directoryInput);
+    if (!existsSync(directory) || !statSync(directory).isDirectory()) return null;
+    const catalog = this.catalogs.load(workspaceRoot);
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(directory, { withFileTypes: true });
+    } catch {
+      return null;
+    }
+    const candidate = this.detectDirectory(
+      directory,
+      directory,
+      entries,
+      catalog,
+      options.role ?? 'technology',
+      options.minConfidence ?? catalog.settings.default_min_confidence,
+    );
+    if (candidate) this.ensureUniqueKeys([candidate]);
+    return candidate;
+  }
+
   readLatest(workspaceRoot: string): RepositoryDiscoveryReport {
     const path = resolve(workspaceRoot, 'context-pack', 'repository-discovery', 'repository-candidates.json');
     if (!existsSync(path)) throw new Error('No previous discovery report exists. Run tcg project:discover <folder>.');
@@ -149,9 +181,10 @@ export class RepositoryDiscoveryService {
   ): RepositoryCandidate | null {
     const names = new Set(entries.map((entry) => entry.name.toLowerCase()));
     const gitRepository = names.has('.git');
+    const manifest = readRepositoryManifest(directory);
     const scores: Array<{ technology: string; score: number; markers: string[] }> = [];
     for (const [technology, profile] of Object.entries(catalog.profiles)) {
-      const result = this.scoreProfile(directory, entries, profile);
+      const result = this.scoreProfile(directory, entries, profile, manifest);
       if (result.score > 0) scores.push({ technology, ...result });
     }
     scores.sort((a, b) => b.score - a.score || a.technology.localeCompare(b.technology));
@@ -161,8 +194,18 @@ export class RepositoryDiscoveryService {
     }
     if (!best || best.score < Math.min(minConfidence, best.technology === 'unknown' ? 55 : minConfidence)) return null;
     const profile = catalog.profiles[best.technology] ?? {};
-    const category = this.inferCategory(directory, scanRoot, catalog, profile.default_category ?? 'subsystem');
-    const key = this.proposeKey(directory, best.technology, profile);
+    const classification = classifyRepositoryManifest(manifest, profile, { repositoryName: basename(directory) });
+    const category = classification.artifactKind === 'library'
+      ? 'library'
+      : this.inferCategory(directory, scanRoot, catalog, profile.default_category ?? 'subsystem');
+    const key = this.proposeKey(directory, best.technology, profile, classification);
+    const detectedRole = classification.artifactKind === 'core'
+      ? 'technology'
+      : classification.artifactKind === 'library'
+        ? 'library'
+        : classification.artifactKind === 'application' && role === 'technology'
+          ? 'application'
+          : role;
     const graphBase = role === 'technology' ? './tech-graphify-out/technologies' : './tech-graphify-out';
     const warnings: string[] = [];
     if (!gitRepository) warnings.push('No .git directory was found; detection was based on technology files.');
@@ -170,15 +213,22 @@ export class RepositoryDiscoveryService {
     return {
       id: `REPO-CAND-${createHash('sha1').update(directory.toLowerCase()).digest('hex').slice(0, 10).toUpperCase()}`,
       key,
-      name: profile.display_name ?? best.technology,
+      name: classification.packageName ?? profile.display_name ?? best.technology,
       path: directory,
       relative_path: relative(scanRoot, directory) || '.',
-      role,
+      role: detectedRole,
       category,
       technology: best.technology,
       technology_label: profile.display_name ?? best.technology,
+      artifact_kind: classification.artifactKind,
+      package_ecosystem: classification.packageEcosystem,
+      package_name: classification.packageName,
+      package_version: classification.packageVersion,
+      technology_version: classification.technologyVersion,
+      technology_constraints: classification.technologyConstraints,
+      classification_evidence: classification.evidence,
       confidence: Math.min(100, best.score),
-      markers: best.markers,
+      markers: [...new Set([...best.markers, ...classification.evidence])],
       git_repository: gitRepository,
       ignore_profile: profile.ignore_profile ?? 'common',
       graph_output: `${graphBase}/${key}`,
@@ -187,7 +237,12 @@ export class RepositoryDiscoveryService {
     };
   }
 
-  private scoreProfile(directory: string, entries: Dirent[], profile: TechnologyProfile): { score: number; markers: string[] } {
+  private scoreProfile(
+    directory: string,
+    entries: Dirent[],
+    profile: TechnologyProfile,
+    manifest = readRepositoryManifest(directory),
+  ): { score: number; markers: string[] } {
     const entryNames = entries.map((entry) => entry.name);
     const lowerNames = new Set(entryNames.map((name) => name.toLowerCase()));
     let score = 0;
@@ -205,37 +260,86 @@ export class RepositoryDiscoveryService {
         markers.push(matching);
       }
     }
+    const manifestIdentities = new Set([
+      ...(profile.core_package_names_any ?? []),
+      ...(profile.library_package_names_any ?? []),
+    ]);
+    if (manifest.name && manifestIdentities.has(manifest.name)) {
+      score += 90;
+      markers.push(`manifest-name:${manifest.name}`);
+    }
+    if ((profile.core_repository_names_any ?? [])
+      .some((name) => name.toLowerCase() === basename(directory).toLowerCase())) {
+      score += 85;
+      markers.push(`repository-name:${basename(directory)}`);
+    }
+    const manifestDependencies = Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies });
+    const manifestDependencyMatches = manifestDependencies.filter((dependency) =>
+      (profile.maven_dependencies_any ?? []).includes(dependency)
+      || (profile.dependency_prefixes_any ?? []).some((prefix) => dependency.startsWith(prefix)));
+    if (manifestDependencyMatches.length > 0) {
+      score += 75;
+      markers.push(...manifestDependencyMatches.map((dependency) => `manifest-dependency:${dependency}`));
+    }
     const packagePath = resolve(directory, 'package.json');
-    if (existsSync(packagePath) && profile.package_dependencies_any?.length) {
+    const npmIdentities = [...new Set([
+      ...(profile.package_dependencies_any ?? []),
+      ...(profile.core_package_names_any ?? []),
+    ])];
+    if (existsSync(packagePath) && (npmIdentities.length || profile.dependency_prefixes_any?.length)) {
       try {
         const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as Record<string, any>;
         const dependencies = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}), ...(pkg.peerDependencies ?? {}) };
         const packageName = typeof pkg.name === 'string' ? pkg.name : undefined;
-        const packageNameMatch = packageName && profile.package_dependencies_any.includes(packageName) ? packageName : undefined;
-        const dependencyMatches = profile.package_dependencies_any.filter(
+        const packageNameMatch = packageName && npmIdentities.includes(packageName) ? packageName : undefined;
+        const dependencyMatches = npmIdentities.filter(
           (dependency) => dependency !== packageNameMatch && Object.prototype.hasOwnProperty.call(dependencies, dependency),
         );
+        const prefixMatches = Object.keys(dependencies).filter((dependency) =>
+          (profile.dependency_prefixes_any ?? []).some((prefix) => dependency.startsWith(prefix)));
         if (packageNameMatch) {
           score += 90;
           markers.push(`package-name:${packageNameMatch}`);
         }
-        if (dependencyMatches.length > 0) {
-          score += 70 + Math.min(15, (dependencyMatches.length - 1) * 5);
-          markers.push(...dependencyMatches.map((item) => `package:${item}`));
+        const allDependencyMatches = [...new Set([...dependencyMatches, ...prefixMatches])];
+        if (allDependencyMatches.length > 0) {
+          score += 70 + Math.min(15, (allDependencyMatches.length - 1) * 5);
+          markers.push(...allDependencyMatches.map((item) => `package:${item}`));
         }
       } catch {
         // Invalid file: the entire discovery process is not aborted.
       }
     }
     const composerPath = resolve(directory, 'composer.json');
-    if (existsSync(composerPath) && profile.composer_require_any?.length) {
+    if (existsSync(composerPath) && (
+      profile.composer_require_any?.length
+      || profile.core_package_names_any?.length
+      || profile.dependency_prefixes_any?.length
+      || profile.composer_extra_any?.length
+    )) {
       try {
         const composer = JSON.parse(readFileSync(composerPath, 'utf8')) as Record<string, any>;
         const requirements = { ...(composer.require ?? {}), ...(composer['require-dev'] ?? {}) };
-        const found = profile.composer_require_any.filter((dependency) => Object.prototype.hasOwnProperty.call(requirements, dependency));
+        const packageName = typeof composer.name === 'string' ? composer.name : undefined;
+        const coreName = packageName && profile.core_package_names_any?.includes(packageName) ? packageName : undefined;
+        if (coreName) {
+          score += 90;
+          markers.push(`composer-name:${coreName}`);
+        }
+        const exact = profile.composer_require_any ?? [];
+        const found = Object.keys(requirements).filter((dependency) =>
+          exact.includes(dependency)
+          || (profile.dependency_prefixes_any ?? []).some((prefix) => dependency.startsWith(prefix)));
         if (found.length > 0) {
           score += 75;
           markers.push(...found.map((item) => `composer:${item}`));
+        }
+        const extras = composer.extra && typeof composer.extra === 'object' ? composer.extra : {};
+        const extraFound = (profile.composer_extra_any ?? [])
+          .filter((key) => Object.prototype.hasOwnProperty.call(extras, key));
+        if (extraFound.length > 0) {
+          score += 65;
+          markers.push(...extraFound.map((key) => `composer-extra:${key}`));
         }
       } catch {
         // Invalid file: any other markers are preserved.
@@ -267,9 +371,21 @@ export class RepositoryDiscoveryService {
     return fallback;
   }
 
-  private proposeKey(directory: string, technology: string, profile: TechnologyProfile = {}): string {
+  private proposeKey(
+    directory: string,
+    technology: string,
+    profile: TechnologyProfile = {},
+    classification?: ReturnType<typeof classifyRepositoryManifest>,
+  ): string {
+    if (classification?.artifactKind === 'core') {
+      return `${technology}-core-${classification.technologyVersion ?? 'unknown'}`;
+    }
     const folder = this.slug(basename(directory));
     const memberAlias = profile.member_key_aliases?.[folder];
+    if (classification?.artifactKind === 'library' && memberAlias) return memberAlias;
+    if (classification?.artifactKind === 'library' && classification.packageName) {
+      return packageKey(classification.packageName);
+    }
     if (memberAlias) return memberAlias;
     if (technology === 'unknown') return folder || 'repository';
     const aliases = new Set([technology, technology.replace(/js$/, ''), 'nest', 'framework', 'source', 'src']);
@@ -285,11 +401,10 @@ export class RepositoryDiscoveryService {
       used.set(candidate.key, count + 1);
       if (count > 0) candidate.key = `${candidate.key}-${count + 1}`;
       const memberOf = this.memberTechnology(candidate);
-      candidate.graph_output = memberOf
-        ? technologyMemberGraphOutput(memberOf, candidate.key)
-        : candidate.role === 'technology'
-          ? `./tech-graphify-out/technologies/${candidate.key}`
-          : `./tech-graphify-out/${candidate.key}`;
+      const technology = memberOf ?? (candidate.technology !== 'unknown' ? candidate.technology : undefined);
+      candidate.graph_output = technology
+        ? technologyMemberGraphOutput(technology, candidate.key)
+        : `./tech-graphify-out/${candidate.key}`;
     }
   }
 
@@ -324,9 +439,34 @@ export class RepositoryDiscoveryService {
       for (const child of children) {
         const folder = this.slug(basename(child.path));
         const alias = composite.profile?.member_key_aliases?.[folder];
-        if (alias) child.key = alias;
+        const reclassified = classifyRepositoryManifest(
+          readRepositoryManifest(child.path),
+          composite.profile ?? {},
+          { repositoryName: basename(child.path) },
+        );
         child.technology = composite.id;
         child.technology_label = composite.label;
+        child.artifact_kind = reclassified.artifactKind;
+        child.package_ecosystem = reclassified.packageEcosystem;
+        child.package_name = reclassified.packageName;
+        child.package_version = reclassified.packageVersion;
+        child.technology_version = reclassified.technologyVersion;
+        child.technology_constraints = reclassified.technologyConstraints;
+        child.classification_evidence = reclassified.evidence;
+        if (reclassified.artifactKind === 'core') {
+          child.key = `${composite.id}-core-${reclassified.technologyVersion ?? 'unknown'}`;
+        } else if (reclassified.artifactKind === 'library' && reclassified.packageName) {
+          child.key = packageKey(reclassified.packageName);
+        } else if (alias) {
+          child.key = alias;
+        }
+        child.role = reclassified.artifactKind === 'core'
+          ? 'technology'
+          : reclassified.artifactKind === 'library'
+            ? 'library'
+            : child.role;
+        if (reclassified.artifactKind === 'library') child.category = 'library';
+        child.markers = [...new Set([...child.markers, ...reclassified.evidence])];
         child.ignore_profile = composite.profile?.ignore_profile ?? child.ignore_profile;
         if (!child.markers.includes(`member_of:${composite.id}`)) child.markers.push(`member_of:${composite.id}`);
         child.warnings.push(`Grouped as a member of the composite technology '${composite.label}' (container folder '${basename(parentPath)}').`);

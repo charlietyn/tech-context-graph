@@ -63,3 +63,23 @@ describe('RepositoryUiPresenterService.technologySummary', () => {
     ])).toContain('⚠ 1 repository requires technology and category configuration.');
   });
 });
+
+describe('RepositoryUiPresenterService.technologyDetails', () => {
+  it('shows core and library members with status and compatibility', () => {
+    const presenter = new RepositoryUiPresenterService();
+    expect(presenter.technologyDetails([
+      {
+        key: 'spring-boot-core-3', technology: 'spring-boot', technologyLabel: 'Spring Boot',
+        artifactKind: 'core', inspectionStatus: 'READY', technologyVersion: '3', technologyConstraints: [],
+      },
+      {
+        key: 'blaze-persistence', technology: 'spring-boot', technologyLabel: 'Spring Boot',
+        artifactKind: 'library', inspectionStatus: 'STALE', technologyConstraints: ['2', '3', '4'],
+      },
+    ])).toEqual([
+      '- Spring Boot: 2',
+      '  ↻ blaze-persistence [library] · compatible 2, 3, 4',
+      '  ● spring-boot-core-3 [core] · version 3',
+    ]);
+  });
+});

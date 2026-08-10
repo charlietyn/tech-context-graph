@@ -6,9 +6,26 @@ export interface TechnologyProfile {
   files_glob_any?: string[];
   package_dependencies_any?: string[];
   composer_require_any?: string[];
+  /** Package identities that represent the technology itself, not a consumer. */
+  core_package_names_any?: string[];
+  /** Dependency prefixes that associate a package with this technology (for example illuminate/). */
+  dependency_prefixes_any?: string[];
+  /** Top-level composer `extra` keys that associate a package with this technology. */
+  composer_extra_any?: string[];
+  /** Maven/Gradle coordinates that associate a repository with this technology. */
+  maven_dependencies_any?: string[];
+  /** Known library coordinates owned by or integrated with this technology family. */
+  library_package_names_any?: string[];
+  /** Repository folder names that identify the upstream technology source itself. */
+  core_repository_names_any?: string[];
+  /** Maven property-name fragments whose values declare compatible technology versions. */
+  maven_version_properties_any?: string[];
   text_markers?: Array<{ file: string; contains_any: string[] }>;
   member_key_aliases?: Record<string, string>;
 }
+
+export type RepositoryArtifactKind = 'core' | 'library' | 'application' | 'unknown';
+export type PackageEcosystem = 'npm' | 'composer' | 'maven' | 'gradle' | 'unknown';
 
 export interface TechnologyCatalog {
   version: number;
@@ -37,6 +54,13 @@ export interface RepositoryCandidate {
   category: string;
   technology: string;
   technology_label: string;
+  artifact_kind: RepositoryArtifactKind;
+  package_ecosystem: PackageEcosystem;
+  package_name?: string;
+  package_version?: string;
+  technology_version?: string;
+  technology_constraints: string[];
+  classification_evidence: string[];
   confidence: number;
   markers: string[];
   git_repository: boolean;

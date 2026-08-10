@@ -24,6 +24,26 @@ describe('SQLite repository catalog', () => {
     expect(items).toHaveLength(1);
     expect(items[0].inspectionStatus).toBe('NEVER');
     expect(existsSync(resolve(root, '.tcg', 'state.sqlite'))).toBe(true);
+
+    await store.upsertManual(root, {
+      key: 'api-core-11',
+      path: repositoryPath,
+      role: 'technology',
+      category: 'backend',
+      technology: 'nestjs',
+      graphOutput: './tech-graphify-out/technologies/nestjs/api-core-11',
+      artifactKind: 'core',
+      packageEcosystem: 'npm',
+      packageName: '@nestjs/core',
+      technologyVersion: '11',
+    });
+    const migrated = await store.list(root);
+    expect(migrated[0]).toMatchObject({
+      key: 'api-core-11',
+      artifactKind: 'core',
+      technologyVersion: '11',
+      graphOutput: './tech-graphify-out/technologies/api',
+    });
     sqlite.close();
   });
 
@@ -55,5 +75,33 @@ describe('SQLite repository catalog', () => {
     expect(items).toHaveLength(2);
     expect(items.every((item) => item.inspectionStatus === 'NEVER')).toBe(true);
     sqlite.close();
+  });
+
+  it('migrates versioned legacy technology roots to versioned core identities', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'tcg-legacy-core-'));
+    const legacyPath = resolve(root, 'Backend', 'Laravel', '12', 'laravel');
+    mkdirSync(legacyPath, { recursive: true });
+    const sqlite = new SqliteDatabaseService();
+    const store = new RepositoryStoreService(sqlite);
+    await store.upsertManual(root, {
+      key: 'laravel',
+      path: legacyPath,
+      role: 'technology',
+      category: 'backend',
+      technology: 'laravel',
+      graphOutput: './tech-graphify-out/technologies/laravel',
+    });
+    await sqlite.run(root, 'DELETE FROM schema_migrations WHERE version=6');
+    sqlite.close();
+
+    const reopened = new SqliteDatabaseService();
+    const migrated = await new RepositoryStoreService(reopened).list(root);
+    expect(migrated[0]).toMatchObject({
+      key: 'laravel-core-12',
+      artifactKind: 'core',
+      technologyVersion: '12',
+      graphOutput: './tech-graphify-out/technologies/laravel',
+    });
+    reopened.close();
   });
 });

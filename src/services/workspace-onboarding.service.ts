@@ -25,36 +25,56 @@ export class WorkspaceOnboardingService {
       clack.note('No Tech Context Graph workspace is configured. A workspace stores SQLite state, graphs, logs and configuration. Your repositories remain in their original folders.', 'First run');
       return this.firstRun();
     }
-    const choice = await this.prompts.requireValue(await clack.autocomplete({
-      message: 'Choose a workspace or create/open another one',
-      maxItems: 12,
-      options: [
-        ...workspaces.map((workspace) => ({ value: `workspace:${workspace.id}`, label: workspace.name, hint: workspace.path })),
-        { value: 'create', label: 'Create a new workspace' },
-        { value: 'open', label: 'Open or adopt an existing folder' },
-        { value: 'exit', label: 'Exit' },
-      ],
-    }));
-    if (choice === 'exit') return undefined;
-    if (choice === 'create') return this.createFlow();
-    if (choice === 'open') return this.openFlow();
-    const workspace = workspaces.find((item) => `workspace:${item.id}` === choice);
-    return workspace ? this.registry.markOpened(workspace) : undefined;
+    const duplicateNames = this.duplicateWorkspaceNames(workspaces);
+    while (true) {
+      const choice = await this.prompts.requireValue(await clack.autocomplete({
+        message: 'Choose a workspace or create/open another one',
+        maxItems: 12,
+        options: [
+          ...workspaces.map((workspace) => ({ value: `workspace:${workspace.id}`, label: this.workspaceLabel(workspace, duplicateNames), hint: workspace.path })),
+          { value: 'create', label: 'Create a new workspace' },
+          { value: 'open', label: 'Open or adopt an existing folder' },
+          { value: 'exit', label: 'Exit' },
+        ],
+      }));
+      if (choice === 'exit') return undefined;
+      if (choice === 'create') {
+        const workspace = await this.createFlow();
+        if (workspace) return workspace;
+        continue;
+      }
+      if (choice === 'open') {
+        const workspace = await this.openFlow();
+        if (workspace) return workspace;
+        continue;
+      }
+      const workspace = workspaces.find((item) => `workspace:${item.id}` === choice);
+      if (workspace) return this.registry.markOpened(workspace);
+    }
   }
 
   private async firstRun(): Promise<WorkspaceReference | undefined> {
     const clack = await this.prompts.load();
-    const action = await this.prompts.requireValue(await clack.select({
-      message: 'How would you like to continue?',
-      options: [
-        { value: 'create', label: 'Create a new workspace', hint: 'Recommended for a new installation.' },
-        { value: 'open', label: 'Open or adopt an existing workspace' },
-        { value: 'exit', label: 'Exit' },
-      ],
-    }));
-    if (action === 'create') return this.createFlow();
-    if (action === 'open') return this.openFlow();
-    return undefined;
+    while (true) {
+      const action = await this.prompts.requireValue(await clack.select({
+        message: 'How would you like to continue?',
+        options: [
+          { value: 'create', label: 'Create a new workspace', hint: 'Recommended for a new installation.' },
+          { value: 'open', label: 'Open or adopt an existing workspace' },
+          { value: 'exit', label: 'Exit' },
+        ],
+      }));
+      if (action === 'exit') return undefined;
+      if (action === 'create') {
+        const workspace = await this.createFlow();
+        if (workspace) return workspace;
+        continue;
+      }
+      if (action === 'open') {
+        const workspace = await this.openFlow();
+        if (workspace) return workspace;
+      }
+    }
   }
 
   private async createFlow(): Promise<WorkspaceReference | undefined> {
@@ -68,6 +88,7 @@ export class WorkspaceOnboardingService {
       title: 'Where should Tech Context Graph store its database, graphs, reports and logs?',
       allowCreate: true,
       includeCurrentDirectory: true,
+      useCurrentLabel: 'Use this folder as the workspace',
     });
     if (!path) return undefined;
     clack.note([
@@ -95,6 +116,7 @@ export class WorkspaceOnboardingService {
       title: 'Choose the existing workspace folder',
       allowCreate: false,
       includeCurrentDirectory: true,
+      useCurrentLabel: 'Use this folder as the workspace',
     });
     if (!path) return undefined;
     const marker = this.markers.read(path);
@@ -116,5 +138,19 @@ export class WorkspaceOnboardingService {
       initialValue: defaultName,
     })));
     return this.initializer.adopt(path, name.trim() || defaultName);
+  }
+
+  private duplicateWorkspaceNames(workspaces: WorkspaceReference[]): Set<string> {
+    const counts = new Map<string, number>();
+    for (const workspace of workspaces) {
+      const key = workspace.name.trim().toLowerCase();
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([name]) => name));
+  }
+
+  private workspaceLabel(workspace: WorkspaceReference, duplicateNames: Set<string>): string {
+    if (!duplicateNames.has(workspace.name.trim().toLowerCase())) return workspace.name;
+    return `${workspace.name} · ${basename(resolve(workspace.path)) || workspace.path}`;
   }
 }

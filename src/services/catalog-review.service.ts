@@ -49,7 +49,14 @@ export class CatalogReviewService {
       } else {
         try {
           await this.store.setCatalogStatus(workspaceRoot, [request.id], request.status);
-          if (request.status === 'ACCEPTED') await this.technologyGraphs?.organize(workspaceRoot, candidate.technology);
+          if (request.status === 'ACCEPTED') {
+            try {
+              await this.technologyGraphs?.organize(workspaceRoot, candidate.technology);
+            } catch (error) {
+              await this.store.setCatalogStatus(workspaceRoot, [request.id], 'DETECTED');
+              throw error;
+            }
+          }
           result = { id: request.id, key: candidate.key, status: request.status === 'ACCEPTED' ? 'accepted' : 'ignored' };
         } catch (error) {
           result = { id: request.id, key: candidate.key, status: 'failed', error: error instanceof Error ? error.message : String(error) };

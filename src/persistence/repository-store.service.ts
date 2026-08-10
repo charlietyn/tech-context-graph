@@ -10,6 +10,8 @@ import { canonicalGraphOutput, resolveGraphOutput } from '../services/graph-outp
 interface RepositoryRow {
   id: string; repo_key: string; name: string; path: string; relative_path: string; role: string;
   category: string; technology: string; technology_label: string; confidence: number; markers_json: string;
+  artifact_kind: string; package_ecosystem: string; package_name?: string; package_version?: string;
+  technology_version?: string; technology_constraints_json: string; classification_evidence_json: string;
   git_repository: number; ignore_profile: string; graph_output: string; enabled: number; catalog_status: string;
   discovered_at: string; updated_at: string; last_seen_at: string;
   inspection_status?: string; last_inspection_at?: string; graph_json_path?: string;
@@ -49,6 +51,9 @@ export class RepositoryStoreService {
     key: string; name?: string; path: string; role: string; category: string; technology: string;
     technologyLabel?: string; confidence?: number; markers?: string[]; gitRepository?: boolean;
     ignoreProfile?: string; graphOutput?: string;
+    artifactKind?: RepositoryCandidate['artifact_kind']; packageEcosystem?: RepositoryCandidate['package_ecosystem'];
+    packageName?: string; packageVersion?: string; technologyVersion?: string;
+    technologyConstraints?: string[]; classificationEvidence?: string[];
   }): Promise<void> {
     const now = new Date().toISOString();
     const candidate: RepositoryCandidate = {
@@ -61,6 +66,13 @@ export class RepositoryStoreService {
       category: values.category,
       technology: values.technology,
       technology_label: values.technologyLabel ?? values.technology,
+      artifact_kind: values.artifactKind ?? (values.role === 'library' ? 'library' : 'unknown'),
+      package_ecosystem: values.packageEcosystem ?? 'unknown',
+      package_name: values.packageName,
+      package_version: values.packageVersion,
+      technology_version: values.technologyVersion,
+      technology_constraints: values.technologyConstraints ?? [],
+      classification_evidence: values.classificationEvidence ?? ['manual'],
       confidence: values.confidence ?? 100,
       markers: values.markers ?? ['manual'],
       git_repository: values.gitRepository ?? existsSync(resolve(values.path, '.git')),
@@ -259,19 +271,28 @@ export class RepositoryStoreService {
   private upsertCandidate(db: any, candidate: RepositoryCandidate, now: string, newStatus: CatalogStatus): void {
     const item = candidateToStored(candidate, now);
     db.run(`INSERT INTO repositories(
-      id,repo_key,name,path,relative_path,role,category,technology,technology_label,confidence,markers_json,
+      id,repo_key,name,path,relative_path,role,category,technology,technology_label,
+      artifact_kind,package_ecosystem,package_name,package_version,technology_version,
+      technology_constraints_json,classification_evidence_json,confidence,markers_json,
       git_repository,ignore_profile,graph_output,enabled,catalog_status,discovered_at,updated_at,last_seen_at
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(path) DO UPDATE SET
       repo_key=excluded.repo_key,name=excluded.name,relative_path=excluded.relative_path,role=excluded.role,
       category=excluded.category,technology=excluded.technology,technology_label=excluded.technology_label,
+      artifact_kind=excluded.artifact_kind,package_ecosystem=excluded.package_ecosystem,
+      package_name=excluded.package_name,package_version=excluded.package_version,
+      technology_version=excluded.technology_version,
+      technology_constraints_json=excluded.technology_constraints_json,
+      classification_evidence_json=excluded.classification_evidence_json,
       confidence=excluded.confidence,markers_json=excluded.markers_json,git_repository=excluded.git_repository,
       ignore_profile=excluded.ignore_profile,
       graph_output=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.graph_output ELSE excluded.graph_output END,
       updated_at=excluded.updated_at,
       last_seen_at=excluded.last_seen_at`, [
       item.id, item.key, item.name, item.path, item.relativePath, item.role, item.category, item.technology,
-      item.technologyLabel, item.confidence, JSON.stringify(item.markers), item.gitRepository ? 1 : 0,
+      item.technologyLabel, item.artifactKind, item.packageEcosystem, item.packageName ?? null,
+      item.packageVersion ?? null, item.technologyVersion ?? null, JSON.stringify(item.technologyConstraints),
+      JSON.stringify(item.classificationEvidence), item.confidence, JSON.stringify(item.markers), item.gitRepository ? 1 : 0,
       item.ignoreProfile, item.graphOutput, newStatus === 'ACCEPTED' ? 1 : 0, newStatus,
       item.discoveredAt, item.updatedAt, item.lastSeenAt,
     ]);
@@ -297,6 +318,13 @@ export class RepositoryStoreService {
       category: row.category,
       technology: row.technology,
       technologyLabel: row.technology_label,
+      artifactKind: (row.artifact_kind || 'unknown') as StoredRepository['artifactKind'],
+      packageEcosystem: (row.package_ecosystem || 'unknown') as StoredRepository['packageEcosystem'],
+      packageName: row.package_name ?? undefined,
+      packageVersion: row.package_version ?? undefined,
+      technologyVersion: row.technology_version ?? undefined,
+      technologyConstraints: JSON.parse(row.technology_constraints_json || '[]'),
+      classificationEvidence: JSON.parse(row.classification_evidence_json || '[]'),
       confidence: Number(row.confidence),
       markers: JSON.parse(row.markers_json || '[]'),
       gitRepository: Boolean(row.git_repository),

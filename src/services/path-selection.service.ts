@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync, mkdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, parse, resolve } from 'node:path';
 import { ClackPromptService } from '../ui/clack-prompt.service';
@@ -17,6 +17,7 @@ export class PathSelectionService {
     allowCreate?: boolean;
     includeCurrentDirectory?: boolean;
     recentPaths?: string[];
+    useCurrentLabel?: string;
   }): Promise<string | undefined> {
     const clack = await this.prompts.load();
     const recent = this.uniquePaths([...(options.recentPaths ?? []), ...this.registry.load().recentPaths]).filter(existsSync);
@@ -71,16 +72,78 @@ export class PathSelectionService {
 
     const startRoot = await this.selectBrowseRoot();
     if (!startRoot) return undefined;
-    const selected = await this.prompts.requireValue(await clack.path({
-      message: 'Browse to the folder and press Enter',
-      root: startRoot,
-      directory: true,
-      initialValue: startRoot,
-      validate: (value) => !value || !existsSync(value) || !statSync(value).isDirectory() ? 'Select an existing directory.' : undefined,
-    }));
-    const path = resolve(String(selected));
+    const path = await this.browseDirectories(startRoot, {
+      allowCreate: Boolean(options.allowCreate),
+      useCurrentLabel: options.useCurrentLabel ?? 'Use this folder',
+    });
+    if (!path) return undefined;
     this.registry.addRecentPath(path);
     return path;
+  }
+
+  private async browseDirectories(startRoot: string, options: { allowCreate: boolean; useCurrentLabel: string }): Promise<string | undefined> {
+    const clack = await this.prompts.load();
+    let current = resolve(startRoot);
+    while (true) {
+      const directories = this.listChildDirectories(current);
+      const parent = dirname(current);
+      const choice = await this.prompts.requireValue(await clack.autocomplete({
+        message: `Browsing ${current}`,
+        maxItems: 18,
+        options: [
+          ...directories.map((path) => ({ value: path, label: this.folderLabel(path), hint: 'Open folder' })),
+          { value: '__tcg_use_current__', label: options.useCurrentLabel, hint: current },
+          ...(this.samePath(parent, current) ? [] : [{ value: '__tcg_parent__', label: 'Go to parent folder', hint: parent }]),
+          ...(options.allowCreate ? [{ value: '__tcg_create__', label: 'Create a folder here' }] : []),
+          { value: '__tcg_back__', label: 'Back' },
+        ],
+      }));
+      const selected = String(choice);
+      if (selected === '__tcg_back__') return undefined;
+      if (selected === '__tcg_parent__') {
+        current = parent;
+        continue;
+      }
+      if (selected === '__tcg_use_current__') return current;
+      if (selected === '__tcg_create__') {
+        const created = await this.createFolderFromPrompt(current);
+        if (created) current = created;
+        continue;
+      }
+      current = resolve(selected);
+    }
+  }
+
+  private async createFolderFromPrompt(current: string): Promise<string | undefined> {
+    const clack = await this.prompts.load();
+    const value = await this.prompts.requireValue(await clack.text({
+      message: 'New folder name or complete path',
+      placeholder: 'workspace',
+      validate: (input) => {
+        if (!input?.trim()) return 'A folder name or path is required.';
+        const candidate = resolve(current, input.trim());
+        if (existsSync(candidate) && !statSync(candidate).isDirectory()) return 'The path exists but is not a directory.';
+        return undefined;
+      },
+    }));
+    const path = resolve(current, String(value).trim());
+    if (!existsSync(path)) mkdirSync(path, { recursive: true });
+    return path;
+  }
+
+  private listChildDirectories(path: string): string[] {
+    try {
+      return readdirSync(path, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => resolve(path, entry.name))
+        .sort((left, right) => this.folderLabel(left).localeCompare(this.folderLabel(right)));
+    } catch {
+      return [];
+    }
+  }
+
+  private folderLabel(path: string): string {
+    return `${parse(path).base || path}/`;
   }
 
   private async selectBrowseRoot(): Promise<string | undefined> {
@@ -122,5 +185,9 @@ export class PathSelectionService {
       seen.add(key);
       return true;
     });
+  }
+
+  private samePath(left: string, right: string): boolean {
+    return resolve(left).toLowerCase() === resolve(right).toLowerCase();
   }
 }

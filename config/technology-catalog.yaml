@@ -72,6 +72,7 @@ profiles:
     ignore_profile: nestjs
     files_any: [nest-cli.json]
     package_dependencies_any: ['@nestjs/core', '@nestjs/common']
+    core_package_names_any: ['@nestjs/core']
 
   laravel:
     display_name: Laravel
@@ -79,12 +80,23 @@ profiles:
     ignore_profile: laravel
     files_any: [artisan]
     composer_require_any: [laravel/framework]
+    core_package_names_any: [laravel/framework, laravel/laravel]
+    dependency_prefixes_any: [illuminate/]
+    composer_extra_any: [laravel]
 
   spring-boot:
     display_name: Spring Boot
     default_category: backend
     ignore_profile: springboot
     files_any: [pom.xml, build.gradle, build.gradle.kts]
+    core_repository_names_any: [spring-boot]
+    core_package_names_any: [org.springframework.boot:spring-boot-project]
+    library_package_names_any: [com.blazebit:blaze-persistence]
+    maven_dependencies_any: [org.springframework.boot:spring-boot, org.springframework.boot:spring-boot-autoconfigure]
+    dependency_prefixes_any: [org.springframework.boot:]
+    maven_version_properties_any: [spring-boot, spring.boot]
+    member_key_aliases:
+      blaze-persistence: blaze-persistence
     text_markers:
       - file: pom.xml
         contains_any: [spring-boot-starter, org.springframework.boot]
@@ -99,12 +111,14 @@ profiles:
     ignore_profile: vue-nuxt
     files_glob_any: [nuxt.config.ts, nuxt.config.js, nuxt.config.mjs]
     package_dependencies_any: [nuxt]
+    core_package_names_any: [nuxt]
 
   vue:
     display_name: Vue
     default_category: frontend
     ignore_profile: vue-nuxt
     package_dependencies_any: [vue, '@vue/consolidate', '@vue/router-root', '@pinia/root']
+    core_package_names_any: [vue]
     member_key_aliases:
       core: core
       router: router
@@ -115,6 +129,7 @@ profiles:
     default_category: frontend
     ignore_profile: primevue
     package_dependencies_any: ['@primevue/monorepo', primevue]
+    core_package_names_any: ['@primevue/monorepo', primevue]
 
   nextjs:
     display_name: Next.js
@@ -122,12 +137,14 @@ profiles:
     ignore_profile: nextjs
     files_glob_any: [next.config.js, next.config.mjs, next.config.ts]
     package_dependencies_any: [next, nextjs-project]
+    core_package_names_any: [next, nextjs-project]
 
   react:
     display_name: React
     default_category: frontend
     ignore_profile: react-expo
     package_dependencies_any: [react, react-dom]
+    core_package_names_any: [react]
 
   expo:
     display_name: Expo / React Native
@@ -135,6 +152,7 @@ profiles:
     ignore_profile: react-expo
     files_glob_any: [app.json, app.config.js, app.config.ts]
     package_dependencies_any: [expo, react-native]
+    core_package_names_any: [expo]
 
   flutter:
     display_name: Flutter
@@ -151,6 +169,7 @@ profiles:
     ignore_profile: common
     files_any: [angular.json]
     package_dependencies_any: ['@angular/core']
+    core_package_names_any: ['@angular/core']
 
   dotnet:
     display_name: .NET

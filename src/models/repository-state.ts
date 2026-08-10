@@ -1,4 +1,4 @@
-import { RepositoryCandidate } from './repository-discovery';
+import { PackageEcosystem, RepositoryArtifactKind, RepositoryCandidate } from './repository-discovery';
 
 export type InspectionStatus = 'NEVER' | 'RUNNING' | 'READY' | 'STALE' | 'FAILED' | 'MISSING';
 export type CatalogStatus = 'DETECTED' | 'ACCEPTED' | 'IGNORED' | 'REJECTED' | 'MISSING';
@@ -13,6 +13,13 @@ export interface StoredRepository {
   category: string;
   technology: string;
   technologyLabel: string;
+  artifactKind: RepositoryArtifactKind;
+  packageEcosystem: PackageEcosystem;
+  packageName?: string;
+  packageVersion?: string;
+  technologyVersion?: string;
+  technologyConstraints: string[];
+  classificationEvidence: string[];
   confidence: number;
   markers: string[];
   gitRepository: boolean;
@@ -66,6 +73,13 @@ export function candidateToStored(candidate: RepositoryCandidate, now: string): 
     category: candidate.category,
     technology: candidate.technology,
     technologyLabel: candidate.technology_label,
+    artifactKind: candidate.artifact_kind,
+    packageEcosystem: candidate.package_ecosystem,
+    packageName: candidate.package_name,
+    packageVersion: candidate.package_version,
+    technologyVersion: candidate.technology_version,
+    technologyConstraints: candidate.technology_constraints,
+    classificationEvidence: candidate.classification_evidence,
     confidence: candidate.confidence,
     markers: candidate.markers,
     gitRepository: candidate.git_repository,
