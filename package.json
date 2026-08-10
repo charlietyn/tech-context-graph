@@ -33,6 +33,9 @@
     "dev": "tsx src/main.ts",
     "test": "jest --runInBand",
     "test:all": "npm test && npm run build",
+    "link": "npm run build && npm link",
+    "unlink": "npm unlink -g tech-context-graph",
+    "relink": "npm run unlink && npm run link",
     "lint:types": "tsc -p tsconfig.json --noEmit",
     "postinstall": "node scripts/postinstall-message.cjs"
   },
