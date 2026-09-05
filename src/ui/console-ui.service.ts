@@ -9,6 +9,7 @@ import { GraphifyCliService } from '../services/graphify-cli.service';
 import { InspectionReconcileService } from '../services/inspection-reconcile.service';
 import { PathSelectionService } from '../services/path-selection.service';
 import { RepositoryControlService } from '../services/repository-control.service';
+import { describeRepositoryPull, RepositoryGitService, RepositoryPullResult } from '../services/repository-git.service';
 import { RepositoryRootService } from '../services/repository-root.service';
 import { GlobalWorkspaceRegistryService } from '../services/global-workspace-registry.service';
 import { ClackPromptService } from './clack-prompt.service';
@@ -23,6 +24,7 @@ export class ConsoleUiService {
     private readonly repositories: RepositoryControlService,
     private readonly store: RepositoryStoreService,
     private readonly graphify: GraphifyCliService,
+    private readonly git: RepositoryGitService,
     private readonly roots: RepositoryRootService,
     private readonly review: CatalogReviewService,
     private readonly pathSelection: PathSelectionService,
@@ -48,10 +50,11 @@ export class ConsoleUiService {
             { value: 'discover', label: '1. Discover repositories', hint: 'Scan one or more explicitly configured search folders.' },
             { value: 'review', label: '2. Review detected repositories', hint: 'Accept only the repositories you want to manage.' },
             { value: 'inspect', label: '3. Inspect with Graphify', hint: 'Search and select one or several accepted repositories.' },
-            { value: 'projects', label: '4. Inspected project details', hint: 'Update, rebuild, query, explain or find a path.' },
-            { value: 'roots', label: '5. Repository search folders', hint: 'Add, scan, enable, disable or remove roots.' },
-            { value: 'status', label: '6. Overall status' },
-            { value: 'settings', label: '7. Workspace settings and file locations' },
+            { value: 'pull-inspect', label: '4. Pull latest code + update graphs', hint: 'Update all accepted repositories or choose one or more.' },
+            { value: 'projects', label: '5. Project details and source folders', hint: 'Edit source folders, inspect or query repositories.' },
+            { value: 'roots', label: '6. Repository search folders', hint: 'Add, scan, enable, disable or remove roots.' },
+            { value: 'status', label: '7. Overall status' },
+            { value: 'settings', label: '8. Workspace settings and file locations' },
             { value: 'switch', label: 'Switch workspace' },
             { value: 'exit', label: 'Exit' },
           ],
@@ -60,6 +63,7 @@ export class ConsoleUiService {
           case 'discover': await this.discoverFlow(root); break;
           case 'review': await this.reviewCandidatesFlow(root); break;
           case 'inspect': await this.inspectFlow(root); break;
+          case 'pull-inspect': await this.inspectFlow(root, true); break;
           case 'projects': await this.projectDetailFlow(root); break;
           case 'roots': await this.rootsFlow(root); break;
           case 'status': await this.statusFlow(root); break;
@@ -241,7 +245,7 @@ export class ConsoleUiService {
     ].join('\n'), 'Catalog acceptance summary');
   }
 
-  private async inspectFlow(root: string): Promise<void> {
+  private async inspectFlow(root: string, pullFirst = false): Promise<void> {
     const clack = await this.prompts.load();
     if (!this.graphify.isAvailable()) {
       clack.log.error('Graphify is not installed or is not on PATH. Run: uv tool install graphifyy');
@@ -253,17 +257,24 @@ export class ConsoleUiService {
       return;
     }
     const mode = await this.prompts.requireValue(await clack.select({
-      message: 'What would you like to inspect?',
-      options: [
-        { value: 'pending', label: 'All pending repositories', hint: 'Never inspected, stale, failed or missing graph.' },
-        { value: 'choose', label: 'Choose one or more with search' },
-        { value: 'single', label: 'Choose one with search' },
-        { value: 'back', label: 'Back' },
-      ],
+      message: pullFirst ? 'Which repositories should be pulled and updated?' : 'What would you like to inspect?',
+      options: pullFirst
+        ? [
+            { value: 'all', label: 'All accepted repositories', hint: `${repositories.length} accepted ${repositories.length === 1 ? 'repository' : 'repositories'}.` },
+            { value: 'choose', label: 'Choose one or more with search', hint: 'Use Space to select each repository.' },
+            { value: 'back', label: 'Back' },
+          ]
+        : [
+            { value: 'pending', label: 'All pending repositories', hint: 'Never inspected, stale, failed or missing graph.' },
+            { value: 'choose', label: 'Choose one or more with search' },
+            { value: 'single', label: 'Choose one with search' },
+            { value: 'back', label: 'Back' },
+          ],
     }));
     if (mode === 'back') return;
     let selected: StoredRepository[] = [];
-    if (mode === 'pending') selected = repositories.filter((item) => ['NEVER', 'STALE', 'FAILED', 'MISSING'].includes(item.inspectionStatus));
+    if (mode === 'all') selected = repositories;
+    else if (mode === 'pending') selected = repositories.filter((item) => ['NEVER', 'STALE', 'FAILED', 'MISSING'].includes(item.inspectionStatus));
     else if (mode === 'single') {
       const id = await this.prompts.requireValue(await clack.autocomplete({
         message: 'Search for a repository',
@@ -276,7 +287,9 @@ export class ConsoleUiService {
       selected = repositories.filter((item) => item.id === id);
     } else {
       const ids = await this.prompts.requireValue(await clack.autocompleteMultiselect({
-        message: 'Search for and select one or more repositories',
+        message: pullFirst
+          ? 'Select the repositories to pull and update with Graphify'
+          : 'Search for and select one or more repositories',
         placeholder: 'Type to filter; press Space to select',
         maxItems: 14,
         required: true,
@@ -290,22 +303,39 @@ export class ConsoleUiService {
       clack.log.info('No repository matches the selected condition.');
       return;
     }
-    clack.note(selected.map((item) => `${this.presenter.statusSymbol(item.inspectionStatus)} ${item.key} · ${item.technologyLabel}\n  ${item.path}`).join('\n'), 'Graphify selection');
+    clack.note(
+      selected.map((item) => `${this.presenter.statusSymbol(item.inspectionStatus)} ${item.key} · ${item.technologyLabel}\n  ${item.path}`).join('\n'),
+      pullFirst ? 'Git pull + Graphify selection' : 'Graphify selection',
+    );
     const proceed = await this.prompts.requireValue(await clack.confirm({
-      message: `Run Graphify sequentially on ${selected.length} repository/repositories?`,
+      message: pullFirst
+        ? `Run git pull --ff-only and then Graphify on ${selected.length} selected repository/repositories? Git failures will be skipped without stopping the others.`
+        : `Run Graphify sequentially on ${selected.length} repository/repositories?`,
       initialValue: true,
     }));
     if (!proceed) return;
     const progress = clack.progress({ max: selected.length * 100, style: 'heavy' });
-    progress.start('Preparing inspections...');
+    progress.start(pullFirst ? 'Preparing Git pulls and graph updates...' : 'Preparing inspections...');
     const startedAt = Date.now();
     const outcomes: Array<InspectionRow & { notices: string[] }> = [];
+    const pullAttempts = new Map<string, { result?: RepositoryPullResult; error?: Error }>();
+    const pullSummaries: string[] = [];
     for (let index = 0; index < selected.length; index += 1) {
       const repository = selected[index];
       let repositoryPercent = 0;
       progress.message(`${index + 1}/${selected.length} · ${repository.key} · preparing`);
       const repositoryStarted = Date.now();
       try {
+        if (pullFirst) {
+          progress.message(`${index + 1}/${selected.length} - ${repository.key} - pulling latest code`);
+          const pull = await this.pullRepositoryOnce(repository, pullAttempts);
+          if (pull.reused) {
+            pullSummaries.push(`${repository.key}: reused the Git pull for shared path ${repository.path}.`);
+          } else {
+            pullSummaries.push(describeRepositoryPull(pull.result));
+          }
+        }
+        progress.message(`${index + 1}/${selected.length} - ${repository.key} - updating graph`);
         const result = await this.graphify.inspect(root, repository, {
           onProgress: (state) => {
             const next = Math.max(repositoryPercent, state.percent);
@@ -325,11 +355,15 @@ export class ConsoleUiService {
           notices: result.notices.map((notice) => `${notice.impact}: ${notice.message}`),
         });
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (pullFirst && !pullSummaries.some((summary) => summary.startsWith(`${repository.key}:`))) {
+          pullSummaries.push(`${repository.key}: Git pull failed; graph update skipped. ${message}`);
+        }
         outcomes.push({
           key: repository.key,
           ok: false,
           durationMs: Date.now() - repositoryStarted,
-          error: error instanceof Error ? error.message : String(error),
+          error: message,
           notices: [],
         });
       }
@@ -338,12 +372,34 @@ export class ConsoleUiService {
     const failures = outcomes.filter((item) => !item.ok);
     if (failures.length === 0) progress.stop(`All graphs were generated successfully in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.`);
     else progress.error(`${outcomes.length - failures.length} succeeded; ${failures.length} failed.`);
+    if (pullFirst && pullSummaries.length > 0) clack.note(pullSummaries.join('\n'), 'Git pull results');
     clack.note(this.presenter.inspectionTable(outcomes), 'Scan results');
     const annotations = outcomes.flatMap((item) => {
       if (!item.ok) return [`! ${item.key}: ${item.error} (see .tcg/logs).`];
       return item.notices.map((notice) => `● ${item.key}: ${notice}`);
     });
     if (annotations.length > 0) clack.note(annotations.join('\n'), 'Notices and warnings');
+  }
+
+  private async pullRepositoryOnce(
+    repository: StoredRepository,
+    attempts: Map<string, { result?: RepositoryPullResult; error?: Error }>,
+  ): Promise<{ result: RepositoryPullResult; reused: boolean }> {
+    const absolutePath = resolve(repository.path);
+    const key = process.platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
+    const previous = attempts.get(key);
+    if (previous?.error) throw previous.error;
+    if (previous?.result) return { result: previous.result, reused: true };
+
+    try {
+      const result = await this.git.pull(repository);
+      attempts.set(key, { result });
+      return { result, reused: false };
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error(String(error));
+      attempts.set(key, { error: failure });
+      throw failure;
+    }
   }
 
   private async reconcileOnOpen(root: string): Promise<void> {
@@ -363,9 +419,9 @@ export class ConsoleUiService {
 
   private async projectDetailFlow(root: string): Promise<void> {
     const clack = await this.prompts.load();
-    const repositories = (await this.repositories.list(root)).filter((item) => ['READY', 'STALE', 'FAILED', 'MISSING'].includes(item.inspectionStatus));
+    const repositories = await this.repositories.list(root);
     if (repositories.length === 0) {
-      clack.log.info('No repository inspection has been attempted yet.');
+      clack.log.info('There are no accepted repositories.');
       return;
     }
     const id = await this.prompts.requireValue(await clack.autocomplete({
@@ -384,22 +440,26 @@ export class ConsoleUiService {
         message: `Actions for ${repository.key}`,
         options: [
           { value: 'update', label: 'Update graph', hint: 'Reuse Graphify cache and process changes.' },
+          { value: 'pull-update', label: 'Pull latest code + update graph', hint: 'Run git pull --ff-only in the original repository folder first.' },
           { value: 'rebuild', label: 'Fully rebuild graph', hint: 'Use --force.' },
+          { value: 'source', label: 'Change source-code folder', hint: 'Choose the directory Graphify should inspect.' },
           { value: 'query', label: 'Query the graph' },
           { value: 'explain', label: 'Explain a node or concept' },
           { value: 'path', label: 'Find a path between two nodes' },
-          { value: 'location', label: 'Show repository, graph and log locations' },
+          { value: 'location', label: 'Show repository, source, graph and log locations' },
           { value: 'disable', label: 'Remove from active catalog', hint: 'Does not delete the repository or existing graph.' },
           { value: 'back', label: 'Back' },
         ],
       }));
       switch (action) {
         case 'update': await this.runSingleInspection(root, repository, false); break;
+        case 'pull-update': await this.runSingleInspection(root, repository, false, true); break;
         case 'rebuild': await this.runSingleInspection(root, repository, true); break;
+        case 'source': await this.changeSourcePathFlow(root, repository); break;
         case 'query': await this.queryFlow(root, repository, 'query'); break;
         case 'explain': await this.queryFlow(root, repository, 'explain'); break;
         case 'path': await this.pathFlow(root, repository); break;
-        case 'location': clack.note(`Repository: ${repository.path}\nOutput: ${repository.graphOutput}\nGraph JSON: ${this.repositories.graphPath(root, repository)}\nLogs: ${resolve(root, '.tcg', 'logs')}`, 'File locations'); break;
+        case 'location': clack.note(`Repository: ${repository.path}\nSource folder: ${repository.sourcePath}\nOutput: ${repository.graphOutput}\nGraph JSON: ${this.repositories.graphPath(root, repository)}\nLogs: ${resolve(root, '.tcg', 'logs')}`, 'File locations'); break;
         case 'disable': {
           const yes = await this.prompts.requireValue(await clack.confirm({ message: `Remove ${repository.key} from the active catalog?`, initialValue: false }));
           if (yes) { await this.store.disable(root, repository.id); clack.log.success('Repository removed from the active catalog.'); active = false; }
@@ -495,11 +555,39 @@ export class ConsoleUiService {
     ].join('\n'), 'Configuration and state files');
   }
 
-  private async runSingleInspection(root: string, repository: StoredRepository, force: boolean): Promise<void> {
+  private async runSingleInspection(root: string, repository: StoredRepository, force: boolean, pullFirst = false): Promise<void> {
     const clack = await this.prompts.load();
+    const startedAt = Date.now();
+    if (pullFirst) {
+      const gitSpinner = clack.spinner({ indicator: 'timer' });
+      gitSpinner.start(`Pulling latest code for ${repository.key} from ${repository.path}...`);
+      try {
+        const result = await this.git.pull(repository);
+        gitSpinner.stop(describeRepositoryPull(result));
+        clack.note([
+          `Original folder: ${result.repositoryPath}`,
+          `Git root: ${result.repositoryRoot}`,
+          `Branch: ${result.branch}`,
+          `Upstream: ${result.upstream}`,
+          `Commit before: ${result.beforeCommit}`,
+          `Commit after: ${result.afterCommit}`,
+          result.output ? `\n${result.output}` : '',
+        ].filter(Boolean).join('\n'), 'Git pull result');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        gitSpinner.error(message);
+        clack.note(this.presenter.inspectionTable([{
+          key: repository.key,
+          ok: false,
+          durationMs: Date.now() - startedAt,
+          error: message,
+        }]), 'Graph update skipped');
+        return;
+      }
+    }
+
     const spinner = clack.spinner({ indicator: 'timer' });
     spinner.start(`${force ? 'Rebuilding' : 'Updating'} ${repository.key}...`);
-    const startedAt = Date.now();
     try {
       const result = await this.graphify.inspect(root, repository, { force });
       spinner.stop(`Graph ready in ${(result.durationMs / 1000).toFixed(1)}s.`);
@@ -509,7 +597,7 @@ export class ConsoleUiService {
         nodeCount: result.nodeCount,
         edgeCount: result.edgeCount,
         communityCount: result.communityCount,
-        durationMs: result.durationMs,
+        durationMs: Date.now() - startedAt,
         clustered: result.clustered,
       }]), 'Scan results');
       const annotations = result.notices.map((notice) => `${notice.impact}: ${notice.message}`);
@@ -556,6 +644,25 @@ export class ConsoleUiService {
     } catch (error) {
       spinner.error(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  private async changeSourcePathFlow(root: string, repository: StoredRepository): Promise<void> {
+    const clack = await this.prompts.load();
+    const folder = await this.pathSelection.selectDirectory({
+      title: `Choose the source-code folder for ${repository.key}`,
+      allowCreate: false,
+      includeCurrentDirectory: true,
+      recentPaths: [repository.sourcePath, repository.path],
+      useCurrentLabel: 'Use this folder as the source-code folder',
+    });
+    if (!folder || resolve(folder) === resolve(repository.sourcePath)) return;
+    const confirmed = await this.prompts.requireValue(await clack.confirm({
+      message: `Use this source-code folder?\n${folder}`,
+      initialValue: true,
+    }));
+    if (!confirmed) return;
+    const updated = await this.repositories.setSourcePath(root, repository.id, folder);
+    clack.log.success(`Source folder updated to ${updated.sourcePath}. The graph will be marked stale after a previous inspection.`);
   }
 
   private async showRepository(repository: StoredRepository): Promise<void> {

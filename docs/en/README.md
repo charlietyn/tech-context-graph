@@ -22,6 +22,7 @@ Read these chapters in order:
 - [Security](08-security.md)
 - [Troubleshooting](09-troubleshooting.md)
 - [Advanced CLI automation](10-advanced-cli.md)
+- [Git pull before graph inspection](15-git-pull-before-inspection.md)
 
 ### I contribute to or integrate the project
 

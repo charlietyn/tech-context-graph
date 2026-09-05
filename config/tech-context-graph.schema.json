@@ -126,6 +126,7 @@
           "technology_version": { "type": "string" },
           "technology_constraints": { "type": "array", "items": { "type": "string" } },
           "path": { "type": "string" },
+          "source_path": { "type": "string" },
           "graph_output": { "type": "string" },
           "ignore_profile": { "type": "string" },
           "enabled": { "type": "boolean" }

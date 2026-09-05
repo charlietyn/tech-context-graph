@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RepositoryDiscoveryReport } from '../models/repository-discovery';
 import { StoredRepository } from '../models/repository-state';
@@ -8,6 +8,7 @@ import { RepositoryDiscoveryService } from './repository-discovery.service';
 import { RepositoryFingerprintService } from './repository-fingerprint.service';
 import { resolveGraphOutput } from './graph-output-path';
 import { TechnologyGraphService } from './technology-graph.service';
+import { WorkspaceConfigService } from './config.service';
 
 @Injectable()
 export class RepositoryControlService {
@@ -16,6 +17,7 @@ export class RepositoryControlService {
     private readonly store: RepositoryStoreService,
     private readonly fingerprints: RepositoryFingerprintService,
     private readonly technologyGraphs?: TechnologyGraphService,
+    private readonly config?: WorkspaceConfigService,
   ) {}
 
   async scan(workspaceRoot: string, scanRoot: string, options: { maxDepth?: number; minConfidence?: number; role?: string } = {}): Promise<RepositoryDiscoveryReport> {
@@ -29,7 +31,7 @@ export class RepositoryControlService {
     return repositories.map((repository) => {
       const current = this.fingerprints.calculate(repository);
       let status = repository.inspectionStatus;
-      if (!existsSync(repository.path)) status = 'MISSING';
+      if (!existsSync(repository.sourcePath)) status = 'MISSING';
       else if (status === 'READY' && repository.sourceFingerprint && repository.sourceFingerprint !== current) status = 'STALE';
       return { ...repository, inspectionStatus: status, currentFingerprint: current };
     });
@@ -61,6 +63,18 @@ export class RepositoryControlService {
       markers: [...new Set([...repository.markers, `manual:${values.technology}`])],
     });
     await this.technologyGraphs?.organize(workspaceRoot, values.technology);
+    return this.get(workspaceRoot, repository.id);
+  }
+
+  async setSourcePath(workspaceRoot: string, id: string, sourcePathInput: string): Promise<StoredRepository> {
+    const repository = await this.get(workspaceRoot, id);
+    const sourcePath = resolve(sourcePathInput);
+    if (!existsSync(sourcePath) || !statSync(sourcePath).isDirectory()) {
+      throw new Error(`Source folder is not an existing directory: ${sourcePath}`);
+    }
+    if (resolve(repository.sourcePath) === sourcePath) return repository;
+    await this.store.updateSourcePath(workspaceRoot, repository.id, sourcePath);
+    this.config?.setProjectSourcePath(workspaceRoot, repository.key, sourcePath);
     return this.get(workspaceRoot, repository.id);
   }
 

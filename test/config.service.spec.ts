@@ -62,4 +62,17 @@ describe('WorkspaceConfigService', () => {
 
     expect(new WorkspaceDatabasePathService(config).resolve(root)).toBe(resolve(root, 'state', 'custom.sqlite'));
   });
+
+  it('persists an edited project source folder when the project exists in YAML', () => {
+    const root = mkdtempSync(join(tmpdir(), 'tcg-config-source-'));
+    const service = new WorkspaceConfigService();
+    const config = service.load(root);
+    config.projects.core = { type: 'technology', path: resolve(root, 'repository') };
+    service.save(root, config);
+    const sourcePath = resolve(root, 'repository', 'packages', 'core');
+
+    service.setProjectSourcePath(root, 'core', sourcePath);
+
+    expect(service.load(root).projects.core.source_path).toBe(sourcePath);
+  });
 });

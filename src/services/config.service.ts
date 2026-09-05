@@ -119,6 +119,14 @@ export class WorkspaceConfigService {
     this.save(root, config);
   }
 
+  setProjectSourcePath(root: string, key: string, sourcePath: string): void {
+    const config = this.load(root);
+    const project = config.projects?.[key];
+    if (!project) return;
+    project.source_path = resolve(sourcePath);
+    this.save(root, config);
+  }
+
   private mergeDefaults(config: Record<string, any>, workspace: { id: string; name: string }): Record<string, any> {
     return {
       version: 4,

@@ -120,14 +120,14 @@ export class GraphifyCliService {
     onLine?: (line: string) => void;
     onProgress?: (progress: InspectionProgress) => void;
   } = {}): Promise<GraphifyInspectionResult> {
-    if (!existsSync(repository.path)) throw new Error(`The repository path no longer exists: ${repository.path}`);
+    if (!existsSync(repository.sourcePath)) throw new Error(`The source folder no longer exists: ${repository.sourcePath}`);
     const started = Date.now();
     const notices: InspectionNotice[] = [];
     const output = resolveGraphOutput(workspaceRoot, repository.graphOutput);
     mkdirSync(output, { recursive: true });
     const logPath = resolve(workspaceRoot, '.tcg', 'logs', `${repository.key}-${Date.now()}.log`);
     mkdirSync(dirname(logPath), { recursive: true });
-    const args = ['extract', repository.path, '--code-only', '--out', output];
+    const args = ['extract', repository.sourcePath, '--code-only', '--out', output];
     const ignorePatterns = this.ignores?.patterns(repository.ignoreProfile) ?? [];
     for (const pattern of ignorePatterns) args.push('--exclude', pattern);
     if (ignorePatterns.length > 0) notices.push({
@@ -135,7 +135,7 @@ export class GraphifyCliService {
       message: `Applied ${ignorePatterns.length} managed ignore rule(s) from common and ${repository.ignoreProfile} profiles.`,
     });
     if (options.force) args.push('--force');
-    const estimatedFiles = this.estimateTrackedFiles(repository.path);
+    const estimatedFiles = this.estimateTrackedFiles(repository.sourcePath);
     const skipClustering = options.noCluster === true || (estimatedFiles !== undefined && estimatedFiles >= 10_000);
     if (skipClustering) {
       args.push('--no-cluster');

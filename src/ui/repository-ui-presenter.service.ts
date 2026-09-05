@@ -100,7 +100,7 @@ export class RepositoryUiPresenterService {
     return repositories.map((item) => ({
       value: item.id,
       label: `${this.statusSymbol(item.inspectionStatus)} ${item.key} · ${item.technologyLabel}`,
-      hint: `${this.statusLabel(item.inspectionStatus)} · ${item.category} · ${item.path}`,
+      hint: `${this.statusLabel(item.inspectionStatus)} · ${item.category} · ${item.sourcePath}`,
     }));
   }
 
@@ -169,7 +169,8 @@ export class RepositoryUiPresenterService {
         ? `Compatible technology versions: ${repository.technologyConstraints.join(', ')}`
         : '',
       `Category: ${repository.category}`,
-      `Path: ${repository.path}`,
+      `Repository path: ${repository.path}`,
+      `Source folder: ${repository.sourcePath}`,
       `Detection confidence: ${repository.confidence}%`,
       `Last inspection: ${repository.lastInspectionAt ?? 'never'}`,
       `Nodes / edges: ${repository.nodeCount ?? '-'} / ${repository.edgeCount ?? '-'}`,

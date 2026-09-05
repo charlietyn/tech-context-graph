@@ -8,6 +8,8 @@ Graphify runs sequentially in this release to keep CPU, memory and logs predicta
 
 `Update graph` reuses Graphify caches. `Fully rebuild graph` adds `--force` and should be reserved for legitimate full rebuilds.
 
+`Pull latest code + update graphs` lets you search for and select several repositories from the main menu; it runs `git pull --ff-only` in each original repository folder before Graphify. If one pull fails, that graph is skipped while the remaining repositories continue. Normal **Update graph** remains offline with respect to Git remotes. See [Git pull before graph inspection](15-git-pull-before-inspection.md) for validation order, safety rules and CLI automation.
+
 ## What inspection produces
 
 A successful inspection creates Graphify artifacts below the repository's configured graph output. The central artifact is `graph.json`; reports and visualization files depend on the Graphify mode and version.

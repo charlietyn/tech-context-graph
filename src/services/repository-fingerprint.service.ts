@@ -8,10 +8,10 @@ import { StoredRepository } from '../models/repository-state';
 @Injectable()
 export class RepositoryFingerprintService {
   calculate(repository: StoredRepository): string {
-    if (!existsSync(repository.path)) return 'missing';
-    const git = this.gitFingerprint(repository.path);
+    if (!existsSync(repository.sourcePath)) return 'missing';
+    const git = this.gitFingerprint(repository.sourcePath);
     if (git) return git;
-    const summary = this.directorySummary(repository.path);
+    const summary = this.directorySummary(repository.sourcePath);
     return `files:${createHash('sha256').update(summary).digest('hex')}`;
   }
 

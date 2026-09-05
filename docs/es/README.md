@@ -22,6 +22,7 @@ Lee estos capítulos en orden:
 - [Seguridad](08-seguridad.md)
 - [Resolución de problemas](09-problemas.md)
 - [CLI avanzada](10-cli-avanzada.md)
+- [Git pull antes de actualizar el grafo](15-git-pull-antes-inspeccion.md)
 
 ### Quiero contribuir o integrar el proyecto
 

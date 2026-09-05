@@ -50,6 +50,7 @@ export class ProjectAddCommand extends CommandRunner {
       category,
       technology,
       path,
+      source_path: path,
       graph_output: graphOutput,
       ignore_profile: ignoreProfile,
       artifact_kind: detected?.artifact_kind ?? (role === 'library' ? 'library' : 'unknown'),
@@ -63,7 +64,7 @@ export class ProjectAddCommand extends CommandRunner {
     };
     this.config.save(root, config);
     await this.store.upsertManual(root, {
-      key, path, role, category, technology, ignoreProfile, graphOutput,
+      key, path, sourcePath: path, role, category, technology, ignoreProfile, graphOutput,
       name: detected?.name,
       technologyLabel: detected?.technology_label,
       confidence: detected?.confidence,
@@ -105,9 +106,9 @@ export class ProjectListCommand extends CommandRunner {
     const projects = this.config.load(resolveWorkspacePath(options.workspace, options.root)).projects || {};
     if (options.json) { console.log(JSON.stringify(projects, null, 2)); return; }
     if (Object.keys(projects).length === 0) { console.log('No projects are registered. Use tcg project:discover <folder> or tcg project:add.'); return; }
-    console.log('KEY\tROLE\tCATEGORY\tTECHNOLOGY\tSTATUS\tPATH');
+    console.log('KEY\tROLE\tCATEGORY\tTECHNOLOGY\tSTATUS\tSOURCE');
     for (const [name, project] of Object.entries<any>(projects)) {
-      console.log(`${name}\t${project.type || 'subsystem'}\t${project.category || '-'}\t${project.technology || '-'}\t${project.enabled === false ? 'disabled' : 'enabled'}\t${project.path}`);
+      console.log(`${name}\t${project.type || 'subsystem'}\t${project.category || '-'}\t${project.technology || '-'}\t${project.enabled === false ? 'disabled' : 'enabled'}\t${project.source_path || project.path}`);
     }
   }
   @Option({ flags: '-w, --workspace <path>' }) parseWorkspace(value: string): string { return value; }

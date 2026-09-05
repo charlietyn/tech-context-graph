@@ -121,7 +121,7 @@ export class ProjectPrepareCommand extends CommandRunner {
       console.log('No changes were requested. Use --write-ignore to create the recommended file.');
       return;
     }
-    const projectPath = resolve(workspaceRoot, project.path);
+    const projectPath = resolve(workspaceRoot, project.source_path || project.path);
     if (!existsSync(projectPath)) throw new Error(`The project path does not exist: ${projectPath}`);
     const commonPath = resolve(this.kitPath.findKitRoot(), 'ignore', 'common.graphifyignore');
     const profileName = project.ignore_profile || 'common';

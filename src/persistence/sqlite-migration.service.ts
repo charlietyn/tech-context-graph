@@ -31,6 +31,7 @@ export class SqliteMigrationService {
         repo_key TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         path TEXT NOT NULL UNIQUE,
+        source_path TEXT NOT NULL,
         relative_path TEXT NOT NULL,
         role TEXT NOT NULL,
         category TEXT NOT NULL,
@@ -92,6 +93,7 @@ export class SqliteMigrationService {
     this.ensureColumn(db, 'repositories', 'technology_version', 'TEXT');
     this.ensureColumn(db, 'repositories', 'technology_constraints_json', "TEXT NOT NULL DEFAULT '[]'");
     this.ensureColumn(db, 'repositories', 'classification_evidence_json', "TEXT NOT NULL DEFAULT '[]'");
+    this.ensureColumn(db, 'repositories', 'source_path', 'TEXT');
     this.ensureMigration(db, 1);
     this.ensureMigration(db, 2);
     this.ensureMigration(db, 3, () => {
@@ -137,6 +139,9 @@ export class SqliteMigrationService {
         db.run(`UPDATE repositories SET repo_key=?,artifact_kind='core',classification_evidence_json=?,updated_at=?
           WHERE id=?`, [key, JSON.stringify(['legacy-core:version-unavailable']), new Date().toISOString(), row.id]);
       }
+    });
+    this.ensureMigration(db, 8, () => {
+      db.run('UPDATE repositories SET source_path=path WHERE source_path IS NULL OR source_path=\'\'');
     });
   }
 

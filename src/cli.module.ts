@@ -14,7 +14,7 @@ import { ClackPromptService } from './ui/clack-prompt.service';
 import { ConsoleUiService } from './ui/console-ui.service';
 import { RepositoryUiPresenterService } from './ui/repository-ui-presenter.service';
 import { UiCommand } from './commands/ui.command';
-import { RepositoryClassifyCommand, RepositoryInspectCommand, RepositoryListCommand, RepositoryReconcileCommand, RepositoryScanCommand } from './commands/repository-control.commands';
+import { RepositoryClassifyCommand, RepositoryInspectCommand, RepositoryListCommand, RepositoryReconcileCommand, RepositoryScanCommand, RepositorySetSourceCommand } from './commands/repository-control.commands';
 import { GlobalWorkspaceRegistryService } from './services/global-workspace-registry.service';
 import { WorkspaceMarkerService } from './services/workspace-marker.service';
 import { WorkspaceResolverService } from './services/workspace-resolver.service';
@@ -31,6 +31,7 @@ import { ConfigurationModule } from './configuration.module';
 import { PersistenceModule } from './persistence.module';
 import { TechnologyGraphService } from './services/technology-graph.service';
 import { GraphifyIgnoreService } from './services/graphify-ignore.service';
+import { RepositoryGitService } from './services/repository-git.service';
 
 @Module({
   imports: [ConfigurationModule, PersistenceModule],
@@ -39,6 +40,7 @@ import { GraphifyIgnoreService } from './services/graphify-ignore.service';
     TechnologyCatalogService,
     RepositoryDiscoveryService,
     RepositoryFingerprintService,
+    RepositoryGitService,
     GraphifyCliService,
     InspectionReconcileService,
     RepositoryControlService,
@@ -75,6 +77,7 @@ import { GraphifyIgnoreService } from './services/graphify-ignore.service';
     RepositoryInspectCommand,
     RepositoryReconcileCommand,
     RepositoryClassifyCommand,
+    RepositorySetSourceCommand,
     StartCommand,
     DoctorCommand,
     ProjectAddCommand,

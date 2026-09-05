@@ -2,7 +2,7 @@
 
 [Previous: Inspection](05-graphify-inspection.md) · [Index](README.md) · [Next: Configuration](07-configuration.md) · [Español](../es/06-detalle-proyecto.md)
 
-After a successful or attempted inspection, a repository appears in the project detail list. Actions include update, full rebuild, natural-language query, node explanation, shortest path, file locations and removal from the active catalog.
+Every accepted repository appears in the project detail list. Actions include changing its source-code folder, update, full rebuild, natural-language query, node explanation, shortest path, file locations and removal from the active catalog.
 
 Queries use the repository-specific `graph.json`; the unified graph is not used automatically. This keeps answers scoped and reduces irrelevant context.
 
@@ -14,7 +14,9 @@ Queries use the repository-specific `graph.json`; the unified graph is not used 
 | Explain | You need focused context for one symbol or concept |
 | Path | You suspect two concepts are connected and want the shortest known route |
 | Update | Source changed and the existing graph can be incrementally refreshed |
+| Pull latest code + update graph | Fetch a clean fast-forward from the configured upstream before updating the graph |
 | Rebuild | You intentionally need a clean extraction |
+| Change source-code folder | Discovery mapped a repository container instead of the directory Graphify should inspect |
 
 ## Better and worse questions
 

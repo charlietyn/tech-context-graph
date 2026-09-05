@@ -23,6 +23,7 @@ describe('SQLite repository catalog', () => {
     const items = await store.list(root);
     expect(items).toHaveLength(1);
     expect(items[0].inspectionStatus).toBe('NEVER');
+    expect(items[0].sourcePath).toBe(repositoryPath);
     expect(existsSync(resolve(root, '.tcg', 'state.sqlite'))).toBe(true);
 
     await store.upsertManual(root, {
@@ -44,6 +45,53 @@ describe('SQLite repository catalog', () => {
       technologyVersion: '11',
       graphOutput: './tech-graphify-out/technologies/api',
     });
+    sqlite.close();
+  });
+
+  it('changes only the source-code folder used for inspection', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'tcg-source-path-'));
+    const repositoryPath = resolve(root, 'technology');
+    const sourcePath = resolve(repositoryPath, 'packages', 'core');
+    mkdirSync(sourcePath, { recursive: true });
+    const sqlite = new SqliteDatabaseService();
+    const store = new RepositoryStoreService(sqlite);
+    await store.upsertManual(root, {
+      key: 'core', path: repositoryPath, role: 'technology', category: 'backend', technology: 'nestjs',
+    });
+    const control = new RepositoryControlService(
+      {} as RepositoryDiscoveryService,
+      store,
+      new RepositoryFingerprintService(),
+    );
+    const original = await control.get(root, 'core');
+    const inspectionId = await store.beginInspection(root, original, original.currentFingerprint!, 'graphify extract', resolve(root, 'inspection.log'));
+    await store.completeInspection(root, inspectionId, { status: 'READY', graphJsonPath: resolve(root, 'missing-graph.json') });
+
+    const updated = await control.setSourcePath(root, 'core', sourcePath);
+
+    expect(updated.path).toBe(repositoryPath);
+    expect(updated.sourcePath).toBe(sourcePath);
+    expect(updated.inspectionStatus).toBe('STALE');
+    sqlite.close();
+  });
+
+  it('rejects a source-code folder that does not exist', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'tcg-source-path-invalid-'));
+    const repositoryPath = resolve(root, 'technology');
+    mkdirSync(repositoryPath, { recursive: true });
+    const sqlite = new SqliteDatabaseService();
+    const store = new RepositoryStoreService(sqlite);
+    await store.upsertManual(root, {
+      key: 'core', path: repositoryPath, role: 'technology', category: 'backend', technology: 'nestjs',
+    });
+    const control = new RepositoryControlService(
+      {} as RepositoryDiscoveryService,
+      store,
+      new RepositoryFingerprintService(),
+    );
+
+    await expect(control.setSourcePath(root, 'core', resolve(root, 'missing')))
+      .rejects.toThrow('Source folder is not an existing directory');
     sqlite.close();
   });
 

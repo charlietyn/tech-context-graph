@@ -160,7 +160,8 @@ Create or open a workspace
   -> Discover repositories
   -> Review detected repositories
   -> Inspect with Graphify
-  -> Inspected project details
+  -> Pull latest code + update graphs (select all or choose one or more)
+  -> Project details and source folders
   -> Query / Explain / Path
 ```
 
@@ -179,9 +180,19 @@ tcg root:add "/srv/repositories" \
 
 tcg root:list --workspace "/opt/tcg/company-catalog"
 tcg root:scan <root-id> --workspace "/opt/tcg/company-catalog"
-tcg repository:review --workspace "/opt/tcg/company-catalog"
+tcg repository:review --accept-all --workspace "/opt/tcg/company-catalog"
 tcg repository:list --workspace "/opt/tcg/company-catalog"
+tcg repository:set-source api "/srv/repositories/platform/packages/api" \
+  --workspace "/opt/tcg/company-catalog"
+tcg repository:inspect api --pull \
+  --workspace "/opt/tcg/company-catalog"
 ```
+
+`repository:review --accept-all` accepts every candidate currently awaiting review. Individual failures remain pending, are reported, and make the command exit with status `1`.
+
+`repository:set-source` changes the directory Graphify inspects while preserving the repository's catalog identity. The interactive UI exposes the same action under **Project details and source folders**.
+
+`repository:inspect --pull` first runs `git pull --ff-only` in the original registered repository folder. Graphify starts only after a clean, successful fast-forward or an already-up-to-date result, and continues to inspect the configured source folder. Local changes, detached `HEAD`, missing upstream branches, authentication failures and divergent histories stop the graph update without modifying Git state automatically. See [Git pull before graph inspection](docs/en/15-git-pull-before-inspection.md) or [Git pull antes de actualizar el grafo](docs/es/15-git-pull-antes-inspeccion.md).
 
 Use `tcg <command> --help` to inspect the exact options supported by a command.
 
@@ -196,7 +207,7 @@ The graph lifecycle tells both humans and automation how much confidence to plac
 | `READY` | Graph matches the stored source fingerprint | Query it |
 | `STALE` | Source changed after the last successful build | Update the graph |
 | `FAILED` | Last inspection failed | Read the log, fix the cause, retry |
-| `MISSING` | Repository path or graph artifact is unavailable | Restore the path or rebuild |
+| `MISSING` | Source folder or graph artifact is unavailable | Restore the path or rebuild |
 
 This matters for AI use: a `READY` graph is stronger context than a graph known to be stale.
 

@@ -8,6 +8,7 @@ export interface StoredRepository {
   key: string;
   name: string;
   path: string;
+  sourcePath: string;
   relativePath: string;
   role: string;
   category: string;
@@ -68,6 +69,7 @@ export function candidateToStored(candidate: RepositoryCandidate, now: string): 
     key: candidate.key,
     name: candidate.name,
     path: candidate.path,
+    sourcePath: candidate.path,
     relativePath: candidate.relative_path,
     role: candidate.role,
     category: candidate.category,

@@ -8,7 +8,7 @@ import { SqliteDatabaseService } from './sqlite-database.service';
 import { canonicalGraphOutput, resolveGraphOutput } from '../services/graph-output-path';
 
 interface RepositoryRow {
-  id: string; repo_key: string; name: string; path: string; relative_path: string; role: string;
+  id: string; repo_key: string; name: string; path: string; source_path?: string; relative_path: string; role: string;
   category: string; technology: string; technology_label: string; confidence: number; markers_json: string;
   artifact_kind: string; package_ecosystem: string; package_name?: string; package_version?: string;
   technology_version?: string; technology_constraints_json: string; classification_evidence_json: string;
@@ -49,6 +49,7 @@ export class RepositoryStoreService {
 
   async upsertManual(workspaceRoot: string, values: {
     key: string; name?: string; path: string; role: string; category: string; technology: string;
+    sourcePath?: string;
     technologyLabel?: string; confidence?: number; markers?: string[]; gitRepository?: boolean;
     ignoreProfile?: string; graphOutput?: string;
     artifactKind?: RepositoryCandidate['artifact_kind']; packageEcosystem?: RepositoryCandidate['package_ecosystem'];
@@ -81,7 +82,11 @@ export class RepositoryStoreService {
       status: 'registered',
       warnings: [],
     };
+    candidate.path = resolve(values.path);
     await this.sqlite.transaction(workspaceRoot, (db) => this.upsertCandidate(db, candidate, now, 'ACCEPTED'));
+    if (values.sourcePath && resolve(values.sourcePath) !== candidate.path) {
+      await this.updateSourcePath(workspaceRoot, candidate.id, resolve(values.sourcePath));
+    }
   }
 
   async list(workspaceRoot: string, options: {
@@ -247,6 +252,19 @@ export class RepositoryStoreService {
     ]);
   }
 
+  async updateSourcePath(workspaceRoot: string, repositoryId: string, sourcePath: string): Promise<void> {
+    await this.sqlite.transaction(workspaceRoot, (db) => {
+      db.run('UPDATE repositories SET source_path=?,updated_at=? WHERE id=?', [
+        resolve(sourcePath),
+        new Date().toISOString(),
+        repositoryId,
+      ]);
+      db.run(`UPDATE inspections SET status='STALE'
+        WHERE id=(SELECT id FROM inspections WHERE repository_id=? ORDER BY started_at DESC LIMIT 1)
+        AND status='READY'`, [repositoryId]);
+    });
+  }
+
   async relocateGraphOutput(workspaceRoot: string, repositoryId: string, values: {
     graphOutput: string;
     oldAbsolutePath: string;
@@ -271,13 +289,14 @@ export class RepositoryStoreService {
   private upsertCandidate(db: any, candidate: RepositoryCandidate, now: string, newStatus: CatalogStatus): void {
     const item = candidateToStored(candidate, now);
     db.run(`INSERT INTO repositories(
-      id,repo_key,name,path,relative_path,role,category,technology,technology_label,
+      id,repo_key,name,path,source_path,relative_path,role,category,technology,technology_label,
       artifact_kind,package_ecosystem,package_name,package_version,technology_version,
       technology_constraints_json,classification_evidence_json,confidence,markers_json,
       git_repository,ignore_profile,graph_output,enabled,catalog_status,discovered_at,updated_at,last_seen_at
-    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(path) DO UPDATE SET
       repo_key=excluded.repo_key,name=excluded.name,relative_path=excluded.relative_path,role=excluded.role,
+      source_path=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.source_path ELSE excluded.source_path END,
       category=excluded.category,technology=excluded.technology,technology_label=excluded.technology_label,
       artifact_kind=excluded.artifact_kind,package_ecosystem=excluded.package_ecosystem,
       package_name=excluded.package_name,package_version=excluded.package_version,
@@ -289,7 +308,7 @@ export class RepositoryStoreService {
       graph_output=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.graph_output ELSE excluded.graph_output END,
       updated_at=excluded.updated_at,
       last_seen_at=excluded.last_seen_at`, [
-      item.id, item.key, item.name, item.path, item.relativePath, item.role, item.category, item.technology,
+      item.id, item.key, item.name, item.path, item.sourcePath, item.relativePath, item.role, item.category, item.technology,
       item.technologyLabel, item.artifactKind, item.packageEcosystem, item.packageName ?? null,
       item.packageVersion ?? null, item.technologyVersion ?? null, JSON.stringify(item.technologyConstraints),
       JSON.stringify(item.classificationEvidence), item.confidence, JSON.stringify(item.markers), item.gitRepository ? 1 : 0,
@@ -313,6 +332,7 @@ export class RepositoryStoreService {
       key: row.repo_key,
       name: row.name,
       path: row.path,
+      sourcePath: row.source_path || row.path,
       relativePath: row.relative_path,
       role: row.role,
       category: row.category,

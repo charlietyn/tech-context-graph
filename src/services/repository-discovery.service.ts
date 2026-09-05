@@ -152,6 +152,7 @@ export class RepositoryDiscoveryService {
         category: candidate.category,
         technology: candidate.technology,
         path: candidate.path,
+        source_path: candidate.path,
         graph_output: candidate.graph_output,
         ignore_profile: candidate.ignore_profile,
         enabled: true,
