@@ -20,3 +20,10 @@ export function technologyGraphOutput(technology: string): string {
 export function technologyMemberGraphOutput(technology: string, repositoryKey: string): string {
   return `${technologyGraphOutput(technology)}/${repositoryKey}`;
 }
+
+/** The catalog role and recognition confidence must not change the output root. */
+export function repositoryGraphOutput(technology: string | undefined, repositoryKey: string): string {
+  return technology && technology !== 'unknown'
+    ? technologyMemberGraphOutput(technology, repositoryKey)
+    : technologyGraphOutput(repositoryKey);
+}

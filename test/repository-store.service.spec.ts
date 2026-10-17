@@ -43,7 +43,7 @@ describe('SQLite repository catalog', () => {
       key: 'api-core-11',
       artifactKind: 'core',
       technologyVersion: '11',
-      graphOutput: './tech-graphify-out/technologies/api',
+      graphOutput: './tech-graphify-out/technologies/nestjs/api',
     });
     sqlite.close();
   });

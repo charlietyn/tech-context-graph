@@ -6,6 +6,7 @@ import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { RepositoryDiscoveryService } from '../services/repository-discovery.service';
 import { TechnologyGraphService } from '../services/technology-graph.service';
+import { repositoryGraphOutput } from '../services/graph-output-path';
 
 @Command({ name: 'project:add', arguments: '<name> <path>', description: 'Manually register a technology, application, or subsystem.' })
 export class ProjectAddCommand extends CommandRunner {
@@ -33,9 +34,9 @@ export class ProjectAddCommand extends CommandRunner {
     const category = options.category || detected?.category || role;
     const technology = options.technology || detected?.technology || 'unknown';
     const ignoreProfile = options.ignoreProfile || detected?.ignore_profile || options.technology || 'common';
-    const graphOutput = detected?.graph_output ?? (technology !== 'unknown'
-      ? `./tech-graphify-out/technologies/${technology}/${key}`
-      : `./tech-graphify-out/${key}`);
+    const graphOutput = options.technology
+      ? repositoryGraphOutput(technology, key)
+      : detected?.graph_output ?? repositoryGraphOutput(technology, key);
     const config = this.config.load(root);
     config.projects ??= {};
     const existingAtKey = config.projects[key];

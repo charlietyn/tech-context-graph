@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { RepositoryCandidate, RepositoryDiscoveryReport } from '../models/repository-discovery';
 import { CatalogStatus, InspectionStatus, ScanRootRecord, StoredRepository, candidateToStored } from '../models/repository-state';
 import { SqliteDatabaseService } from './sqlite-database.service';
-import { canonicalGraphOutput, resolveGraphOutput } from '../services/graph-output-path';
+import { canonicalGraphOutput, repositoryGraphOutput, resolveGraphOutput } from '../services/graph-output-path';
 
 interface RepositoryRow {
   id: string; repo_key: string; name: string; path: string; source_path?: string; relative_path: string; role: string;
@@ -78,7 +78,7 @@ export class RepositoryStoreService {
       markers: values.markers ?? ['manual'],
       git_repository: values.gitRepository ?? existsSync(resolve(values.path, '.git')),
       ignore_profile: values.ignoreProfile ?? values.technology,
-      graph_output: values.graphOutput ?? `./tech-graphify-out/technologies/${values.key}`,
+      graph_output: values.graphOutput ?? repositoryGraphOutput(values.technology, values.key),
       status: 'registered',
       warnings: [],
     };

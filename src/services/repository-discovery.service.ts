@@ -19,7 +19,7 @@ import {
 } from '../models/repository-discovery';
 import { TechnologyCatalogService } from './technology-catalog.service';
 import { WorkspaceConfigService } from './config.service';
-import { technologyMemberGraphOutput } from './graph-output-path';
+import { repositoryGraphOutput } from './graph-output-path';
 import {
   classifyRepositoryManifest,
   packageKey,
@@ -207,7 +207,6 @@ export class RepositoryDiscoveryService {
         : classification.artifactKind === 'application' && role === 'technology'
           ? 'application'
           : role;
-    const graphBase = role === 'technology' ? './tech-graphify-out/technologies' : './tech-graphify-out';
     const warnings: string[] = [];
     if (!gitRepository) warnings.push('No .git directory was found; detection was based on technology files.');
     if (best.technology === 'unknown') warnings.push('Git repository with no recognized technology; manual classification is required.');
@@ -232,7 +231,7 @@ export class RepositoryDiscoveryService {
       markers: [...new Set([...best.markers, ...classification.evidence])],
       git_repository: gitRepository,
       ignore_profile: profile.ignore_profile ?? 'common',
-      graph_output: `${graphBase}/${key}`,
+      graph_output: repositoryGraphOutput(best.technology, key),
       status: 'candidate',
       warnings,
     };
@@ -403,9 +402,7 @@ export class RepositoryDiscoveryService {
       if (count > 0) candidate.key = `${candidate.key}-${count + 1}`;
       const memberOf = this.memberTechnology(candidate);
       const technology = memberOf ?? (candidate.technology !== 'unknown' ? candidate.technology : undefined);
-      candidate.graph_output = technology
-        ? technologyMemberGraphOutput(technology, candidate.key)
-        : `./tech-graphify-out/${candidate.key}`;
+      candidate.graph_output = repositoryGraphOutput(technology, candidate.key);
     }
   }
 

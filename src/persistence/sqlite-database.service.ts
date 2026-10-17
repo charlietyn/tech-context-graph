@@ -27,8 +27,15 @@ export class SqliteDatabaseService {
     mkdirSync(dirname(target), { recursive: true });
     this.database = existsSync(target) ? new this.sql.Database(readFileSync(target)) : new this.sql.Database();
     this.databasePath = target;
-    this.migrations.migrate(this.database);
-    this.persist();
+    try {
+      this.migrations.migrate(this.database, workspaceRoot);
+      this.persist();
+    } catch (error) {
+      this.database.close();
+      this.database = undefined;
+      this.databasePath = undefined;
+      throw error;
+    }
     return this.database;
   }
 

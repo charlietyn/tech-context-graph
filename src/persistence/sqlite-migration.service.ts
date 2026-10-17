@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Database } from 'sql.js';
+import { migrateFlatGraphOutputs } from './graph-output-migration';
 
 @Injectable()
 export class SqliteMigrationService {
-  migrate(db: Database): void {
+  migrate(db: Database, workspaceRoot: string): void {
     db.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -143,6 +144,7 @@ export class SqliteMigrationService {
     this.ensureMigration(db, 8, () => {
       db.run('UPDATE repositories SET source_path=path WHERE source_path IS NULL OR source_path=\'\'');
     });
+    this.ensureMigration(db, 9, () => migrateFlatGraphOutputs(db, workspaceRoot));
   }
 
   private migrateVersionedLegacyCores(db: Database): void {

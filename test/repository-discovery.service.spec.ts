@@ -15,6 +15,24 @@ describe('RepositoryDiscoveryService', () => {
     return new RepositoryDiscoveryService(catalog, config);
   }
 
+  it.each(['technology', 'application'])('keeps unknown %s repositories under technologies after assigning unique keys', (role) => {
+    const root = mkdtempSync(join(tmpdir(), 'tcg-unknown-output-'));
+    const source = join(root, 'sources');
+    for (const folder of ['first/go', 'second/go', 'driver-js']) {
+      mkdirSync(join(source, folder, '.git'), { recursive: true });
+    }
+    const service = createService();
+    const report = service.discover(root, source, { role });
+    expect(report.candidates).toHaveLength(3);
+    expect(new Set(report.candidates.map((item) => item.key)).size).toBe(3);
+    for (const item of report.candidates) {
+      expect(item.technology).toBe('unknown');
+      expect(item.graph_output).toBe(`./tech-graphify-out/technologies/${item.key}`);
+    }
+    expect(service.detectRepository(root, join(source, 'driver-js'))?.graph_output)
+      .toBe('./tech-graphify-out/technologies/driver-js');
+  });
+
   it('detects NestJS and Laravel inside an unstructured global folder', () => {
     const base = mkdtempSync(join(tmpdir(), 'tcg-discovery-'));
     const workspace = join(base, 'workspace');

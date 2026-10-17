@@ -14,6 +14,10 @@ Graphify runs sequentially in this release to keep CPU, memory and logs predicta
 
 A successful inspection creates Graphify artifacts below the repository's configured graph output. The central artifact is `graph.json`; reports and visualization files depend on the Graphify mode and version.
 
+Default outputs always live under `tech-graphify-out/technologies/`: recognized technologies use `<technology>/<repository-key>/`, and unrecognized repositories use `<repository-key>/`, regardless of their catalog role. For example, Go and driver-js can use `tech-graphify-out/technologies/go/` and `tech-graphify-out/technologies/driver-js/` while classified as `unknown`. Graphify may create its own `graphify-out/graph.json` inside each output directory.
+
+On opening an older workspace, the catalog migrates flat default outputs (`tech-graphify-out/<repository-key>/`) and their inspection history. Folders already moved to the destination are adopted without rebuilding the graph. If both locations exist, migration stops with their paths so they can be reconciled without overwriting either copy. Explicit custom output paths are preserved. Historical command and log text retains the original execution paths; the graph of Tech Context Graph itself stays in the workspace's separate `graphify-out/`.
+
 Tech Context Graph records counts and locations, but counts are diagnostic rather than a quality score. A graph with many nodes is not automatically better than a smaller graph that answers the intended questions.
 
 ## Update versus rebuild

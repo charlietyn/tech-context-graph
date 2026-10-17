@@ -12,6 +12,10 @@ Graphify se ejecuta secuencialmente para mantener predecible el consumo y los lo
 
 Una inspección correcta crea artefactos de Graphify bajo la salida configurada. El artefacto central es `graph.json`; los informes y visualizaciones dependen del modo y la versión de Graphify.
 
+Las salidas por defecto siempre se guardan en `tech-graphify-out/technologies/`: las tecnologías reconocidas usan `<tecnología>/<clave-repositorio>/` y los repositorios sin reconocer usan `<clave-repositorio>/`, independientemente de su rol en el catálogo. Por ejemplo, Go y driver-js pueden usar `tech-graphify-out/technologies/go/` y `tech-graphify-out/technologies/driver-js/` mientras figuren como `unknown`. Graphify puede crear su propio `graphify-out/graph.json` dentro de cada carpeta de salida.
+
+Al abrir un workspace antiguo, el catálogo migra las salidas planas por defecto (`tech-graphify-out/<clave-repositorio>/`) y su historial de inspecciones. Si las carpetas ya se movieron al destino, las reconoce sin reconstruir el grafo. Si existen ambas ubicaciones, la migración se detiene e indica sus rutas para resolver el conflicto sin sobrescribir ninguna copia. Se conservan las rutas de salida personalizadas. El texto histórico de comandos y logs mantiene las rutas de la ejecución original; el grafo del propio Tech Context Graph sigue separado en `graphify-out/`.
+
 Tech Context Graph registra cantidades y ubicaciones, pero el número de nodos no es una nota de calidad. Un grafo grande no es necesariamente mejor que uno pequeño capaz de responder las preguntas relevantes.
 
 ## Actualizar frente a reconstruir
