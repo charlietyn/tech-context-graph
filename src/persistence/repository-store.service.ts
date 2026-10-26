@@ -93,9 +93,13 @@ export class RepositoryStoreService {
     enabledOnly?: boolean;
     inspectedOnly?: boolean;
     catalogStatuses?: CatalogStatus[];
+    id?: string;
+    key?: string;
   } = {}): Promise<StoredRepository[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
+    if (options.id) { conditions.push('r.id = ?'); params.push(options.id); }
+    if (options.key) { conditions.push('r.repo_key = ?'); params.push(options.key); }
     if (options.enabledOnly !== false) conditions.push('r.enabled = 1');
     if (options.inspectedOnly) conditions.push("i.status = 'READY'");
     const statuses = options.catalogStatuses ?? ['ACCEPTED'];
@@ -108,14 +112,17 @@ export class RepositoryStoreService {
       SELECT r.*,
         i.status AS inspection_status,
         i.completed_at AS last_inspection_at,
-        i.graph_json_path,
-        i.node_count,
-        i.edge_count,
+        COALESCE(i.graph_json_path, valid.graph_json_path) AS graph_json_path,
+        COALESCE(i.node_count, valid.node_count) AS node_count,
+        COALESCE(i.edge_count, valid.edge_count) AS edge_count,
         i.error_message,
         i.source_fingerprint
       FROM repositories r
       LEFT JOIN inspections i ON i.id = (
         SELECT i2.id FROM inspections i2 WHERE i2.repository_id = r.id ORDER BY i2.started_at DESC LIMIT 1
+      )
+      LEFT JOIN inspections valid ON valid.id = (
+        SELECT v.id FROM inspections v WHERE v.repository_id = r.id AND v.status = 'READY' ORDER BY v.started_at DESC LIMIT 1
       )
       ${where}
       ORDER BY r.category, r.technology, r.repo_key
@@ -128,11 +135,11 @@ export class RepositoryStoreService {
   }
 
   async getById(workspaceRoot: string, id: string): Promise<StoredRepository | undefined> {
-    return (await this.list(workspaceRoot, { enabledOnly: false, catalogStatuses: ['DETECTED', 'ACCEPTED', 'IGNORED', 'REJECTED', 'MISSING'] })).find((item) => item.id === id);
+    return (await this.list(workspaceRoot, { id, enabledOnly: false, catalogStatuses: ['DETECTED', 'ACCEPTED', 'IGNORED', 'REJECTED', 'MISSING'] }))[0];
   }
 
   async getByKey(workspaceRoot: string, key: string): Promise<StoredRepository | undefined> {
-    return (await this.list(workspaceRoot, { enabledOnly: false, catalogStatuses: ['DETECTED', 'ACCEPTED', 'IGNORED', 'REJECTED', 'MISSING'] })).find((item) => item.key === key);
+    return (await this.list(workspaceRoot, { key, enabledOnly: false, catalogStatuses: ['DETECTED', 'ACCEPTED', 'IGNORED', 'REJECTED', 'MISSING'] }))[0];
   }
 
   async setCatalogStatus(workspaceRoot: string, repositoryIds: string[], status: CatalogStatus): Promise<void> {
@@ -184,12 +191,12 @@ export class RepositoryStoreService {
    * FAILED rows that predate the graphify-out path fix but whose graph.json is on disk).
    */
   async latestInspections(workspaceRoot: string): Promise<Array<{
-    repositoryId: string; repoKey: string; inspectionId: string; status: string; graphOutput: string;
+    repositoryId: string; repoKey: string; inspectionId: string; status: string; graphOutput: string; sourceFingerprint?: string;
   }>> {
     const rows = await this.sqlite.all<{
-      repository_id: string; repo_key: string; inspection_id: string; status: string; graph_output: string;
+      repository_id: string; repo_key: string; inspection_id: string; status: string; graph_output: string; source_fingerprint?: string;
     }>(workspaceRoot, `
-      SELECT i.repository_id, r.repo_key, i.id AS inspection_id, i.status, i.graph_output
+      SELECT i.repository_id, r.repo_key, i.id AS inspection_id, i.status, i.graph_output, i.source_fingerprint
       FROM inspections i
       JOIN repositories r ON r.id = i.repository_id
       WHERE i.id = (
@@ -202,6 +209,7 @@ export class RepositoryStoreService {
       inspectionId: row.inspection_id,
       status: row.status,
       graphOutput: row.graph_output,
+      sourceFingerprint: row.source_fingerprint,
     }));
   }
 

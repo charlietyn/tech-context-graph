@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync } from 'node:fs';
+import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
@@ -9,22 +9,23 @@ import { GraphifyCliService } from '../services/graphify-cli.service';
 import { InspectionReconcileService } from '../services/inspection-reconcile.service';
 import { PathSelectionService } from '../services/path-selection.service';
 import { RepositoryControlService } from '../services/repository-control.service';
-import { describeRepositoryPull, RepositoryGitService, RepositoryPullResult } from '../services/repository-git.service';
+import { RepositoryUpdateService, UpdateReport } from '../services/repository-update.service';
 import { RepositoryRootService } from '../services/repository-root.service';
 import { GlobalWorkspaceRegistryService } from '../services/global-workspace-registry.service';
 import { ClackPromptService } from './clack-prompt.service';
-import { InspectionRow, RepositoryUiPresenterService } from './repository-ui-presenter.service';
+import { RepositoryUiPresenterService } from './repository-ui-presenter.service';
 
 export type ConsoleUiResult = 'SWITCH_WORKSPACE' | 'EXIT';
 
 @Injectable()
 export class ConsoleUiService {
+  private backgroundNotice?: string;
   constructor(
     private readonly prompts: ClackPromptService,
     private readonly repositories: RepositoryControlService,
     private readonly store: RepositoryStoreService,
     private readonly graphify: GraphifyCliService,
-    private readonly git: RepositoryGitService,
+    private readonly updates: RepositoryUpdateService,
     private readonly roots: RepositoryRootService,
     private readonly review: CatalogReviewService,
     private readonly pathSelection: PathSelectionService,
@@ -39,11 +40,29 @@ export class ConsoleUiService {
     const clack = await this.prompts.load();
     const marker = this.registry.listValid().find((workspace) => resolve(workspace.path).toLowerCase() === root.toLowerCase());
     clack.intro('Tech Context Graph · Repository Knowledge Control');
-    await this.reconcileOnOpen(root);
+    let background = new AbortController();
+    let reconciled = false;
+    let startupRecorded = false;
+    let backgroundTask: Promise<void> | undefined;
+    const openedAt = Date.now();
     try {
       let running = true;
       while (running) {
         await this.showWorkspaceSummary(root, marker?.name ?? this.config.load(root).workspace?.name ?? 'Workspace');
+        if (!backgroundTask) {
+          if (!startupRecorded) {
+            mkdirSync(resolve(root, '.tcg', 'logs'), { recursive: true });
+            appendFileSync(resolve(root, '.tcg', 'logs', 'startup.jsonl'), JSON.stringify({
+              at: new Date().toISOString(), pid: process.pid, menuMs: Date.now() - openedAt, processMs: Math.round(process.uptime() * 1000),
+            }) + '\n');
+            startupRecorded = true;
+          }
+          backgroundTask = (reconciled ? Promise.resolve() : this.reconciler.reconcile(root))
+            .then(() => this.repositories.refreshInBackground(root, background.signal))
+            .catch((error) => { this.backgroundNotice = String(error); });
+          reconciled = true;
+          void this.graphify.version();
+        }
         const action = await this.prompts.requireValue(await clack.select({
           message: 'What would you like to do?',
           options: [
@@ -59,11 +78,12 @@ export class ConsoleUiService {
             { value: 'exit', label: 'Exit' },
           ],
         }), 'Session ended.');
+        background.abort(); await backgroundTask; backgroundTask = undefined; background = new AbortController();
         switch (action) {
           case 'discover': await this.discoverFlow(root); break;
           case 'review': await this.reviewCandidatesFlow(root); break;
-          case 'inspect': await this.inspectFlow(root); break;
-          case 'pull-inspect': await this.inspectFlow(root, true); break;
+          case 'inspect': await this.inspectFlow(root); this.repositories.invalidate(root); break;
+          case 'pull-inspect': await this.inspectFlow(root, true); this.repositories.invalidate(root); break;
           case 'projects': await this.projectDetailFlow(root); break;
           case 'roots': await this.rootsFlow(root); break;
           case 'status': await this.statusFlow(root); break;
@@ -77,7 +97,7 @@ export class ConsoleUiService {
     } catch (error) {
       if (error instanceof Error && error.message === 'TCG_CANCELLED') return 'EXIT';
       throw error;
-    }
+    } finally { background.abort(); await backgroundTask; }
   }
 
   private async showWorkspaceSummary(root: string, name: string): Promise<void> {
@@ -96,7 +116,11 @@ export class ConsoleUiService {
       `Accepted repositories: ${accepted.length}`,
       `Awaiting review: ${detected.length}`,
       `Graphs: ${counts.READY ?? 0} ready · ${counts.STALE ?? 0} stale · ${counts.NEVER ?? 0} never inspected · ${counts.FAILED ?? 0} failed · ${counts.MISSING ?? 0} missing`,
-      `Graphify: ${this.graphify.isAvailable() ? this.graphify.version() : 'not found'}`,
+      `Freshness checked: ${accepted.filter((r) => r.freshnessCheckedAt).length}/${accepted.length}; stored graph state is shown until verification completes.`,
+      `Freshness errors: ${accepted.filter((r) => r.freshnessError).length} (see project details)`,
+      `Last verification: ${accepted.map((r) => r.freshnessCheckedAt).filter(Boolean).sort().at(-1) ?? 'pending'}`,
+      `Graphify: ${this.graphify.cachedVersion ?? 'checking'}`,
+      ...(this.backgroundNotice ? [this.backgroundNotice] : []),
     ].join('\n'), 'Current workspace');
   }
 
@@ -247,7 +271,7 @@ export class ConsoleUiService {
 
   private async inspectFlow(root: string, pullFirst = false): Promise<void> {
     const clack = await this.prompts.load();
-    if (!this.graphify.isAvailable()) {
+    if (!await this.graphify.isAvailable()) {
       clack.log.error('Graphify is not installed or is not on PATH. Run: uv tool install graphifyy');
       return;
     }
@@ -274,7 +298,7 @@ export class ConsoleUiService {
     if (mode === 'back') return;
     let selected: StoredRepository[] = [];
     if (mode === 'all') selected = repositories;
-    else if (mode === 'pending') selected = repositories.filter((item) => ['NEVER', 'STALE', 'FAILED', 'MISSING'].includes(item.inspectionStatus));
+    else if (mode === 'pending') selected = repositories; // The coordinator verifies freshness before deciding to extract.
     else if (mode === 'single') {
       const id = await this.prompts.requireValue(await clack.autocomplete({
         message: 'Search for a repository',
@@ -314,107 +338,35 @@ export class ConsoleUiService {
       initialValue: true,
     }));
     if (!proceed) return;
-    const progress = clack.progress({ max: selected.length * 100, style: 'heavy' });
-    progress.start(pullFirst ? 'Preparing Git pulls and graph updates...' : 'Preparing inspections...');
-    const startedAt = Date.now();
-    const outcomes: Array<InspectionRow & { notices: string[] }> = [];
-    const pullAttempts = new Map<string, { result?: RepositoryPullResult; error?: Error }>();
-    const pullSummaries: string[] = [];
-    for (let index = 0; index < selected.length; index += 1) {
-      const repository = selected[index];
-      let repositoryPercent = 0;
-      progress.message(`${index + 1}/${selected.length} · ${repository.key} · preparing`);
-      const repositoryStarted = Date.now();
-      try {
-        if (pullFirst) {
-          progress.message(`${index + 1}/${selected.length} - ${repository.key} - pulling latest code`);
-          const pull = await this.pullRepositoryOnce(repository, pullAttempts);
-          if (pull.reused) {
-            pullSummaries.push(`${repository.key}: reused the Git pull for shared path ${repository.path}.`);
-          } else {
-            pullSummaries.push(describeRepositoryPull(pull.result));
-          }
-        }
-        progress.message(`${index + 1}/${selected.length} - ${repository.key} - updating graph`);
-        const result = await this.graphify.inspect(root, repository, {
-          onProgress: (state) => {
-            const next = Math.max(repositoryPercent, state.percent);
-            const delta = next - repositoryPercent;
-            repositoryPercent = next;
-            if (delta > 0) progress.advance(delta, `${index + 1}/${selected.length} · ${repository.key} · ${state.message}`);
-          },
-        });
-        outcomes.push({
-          key: repository.key,
-          ok: true,
-          nodeCount: result.nodeCount,
-          edgeCount: result.edgeCount,
-          communityCount: result.communityCount,
-          durationMs: result.durationMs,
-          clustered: result.clustered,
-          notices: result.notices.map((notice) => `${notice.impact}: ${notice.message}`),
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (pullFirst && !pullSummaries.some((summary) => summary.startsWith(`${repository.key}:`))) {
-          pullSummaries.push(`${repository.key}: Git pull failed; graph update skipped. ${message}`);
-        }
-        outcomes.push({
-          key: repository.key,
-          ok: false,
-          durationMs: Date.now() - repositoryStarted,
-          error: message,
-          notices: [],
-        });
-      }
-      if (repositoryPercent < 100) progress.advance(100 - repositoryPercent, `${index + 1}/${selected.length} · ${repository.key} · completed`);
-    }
-    const failures = outcomes.filter((item) => !item.ok);
-    if (failures.length === 0) progress.stop(`All graphs were generated successfully in ${((Date.now() - startedAt) / 1000).toFixed(1)}s.`);
-    else progress.error(`${outcomes.length - failures.length} succeeded; ${failures.length} failed.`);
-    if (pullFirst && pullSummaries.length > 0) clack.note(pullSummaries.join('\n'), 'Git pull results');
-    clack.note(this.presenter.inspectionTable(outcomes), 'Scan results');
-    const annotations = outcomes.flatMap((item) => {
-      if (!item.ok) return [`! ${item.key}: ${item.error} (see .tcg/logs).`];
-      return item.notices.map((notice) => `● ${item.key}: ${notice}`);
-    });
-    if (annotations.length > 0) clack.note(annotations.join('\n'), 'Notices and warnings');
+    await this.runUpdates(root, selected, { pull: pullFirst });
   }
 
-  private async pullRepositoryOnce(
-    repository: StoredRepository,
-    attempts: Map<string, { result?: RepositoryPullResult; error?: Error }>,
-  ): Promise<{ result: RepositoryPullResult; reused: boolean }> {
-    const absolutePath = resolve(repository.path);
-    const key = process.platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
-    const previous = attempts.get(key);
-    if (previous?.error) throw previous.error;
-    if (previous?.result) return { result: previous.result, reused: true };
-
-    try {
-      const result = await this.git.pull(repository);
-      attempts.set(key, { result });
-      return { result, reused: false };
-    } catch (error) {
-      const failure = error instanceof Error ? error : new Error(String(error));
-      attempts.set(key, { error: failure });
-      throw failure;
-    }
-  }
-
-  private async reconcileOnOpen(root: string): Promise<void> {
+  private async runUpdates(root: string, repositories: StoredRepository[], options: { pull?: boolean; force?: boolean }): Promise<void> {
     const clack = await this.prompts.load();
+    const spinner = clack.spinner({ indicator: 'timer' });
+    spinner.start('Checking repositories...');
     try {
-      const report = await this.reconciler.reconcile(root);
-      if (report.healed.length === 0 && report.interrupted.length === 0) return;
-      const lines = [
-        ...report.healed.map((entry) => `● ${entry.repoKey}: ${entry.from} → READY (${entry.detail})`),
-        ...report.interrupted.map((entry) => `× ${entry.repoKey}: ${entry.from} → FAILED (${entry.detail})`),
-      ];
-      clack.note(lines.join('\n'), 'Catalog reconciled with disk');
-    } catch (error) {
-      clack.log.warn(`Could not reconcile inspection state: ${error instanceof Error ? error.message : String(error)}`);
-    }
+      const report = await this.updates.run(root, repositories, {
+        ...options, onProgress: (message, completed, total) => spinner.message(`${completed}/${total} ? ${message}`),
+      });
+      const failed = report.outcomes.filter((row) => !row.ok).length;
+      const aggregateFailures = report.aggregates.filter((item) => ['FAILED', 'CANCELLED'].includes(item.status)).length;
+      const summary = `${report.outcomes.length - failed} completed; ${failed} blocked/failed/cancelled; ${aggregateFailures} aggregate issue(s). ${(report.durationMs / 1000).toFixed(1)}s`;
+      if (failed || aggregateFailures) spinner.error(summary); else spinner.stop(summary);
+      this.showUpdateReport(clack, report);
+    } catch (error) { spinner.error(error instanceof Error ? error.message : String(error)); }
+    finally { this.repositories.invalidate(root); }
+  }
+
+  private showUpdateReport(clack: Awaited<ReturnType<ClackPromptService['load']>>, report: UpdateReport): void {
+    clack.note(this.presenter.inspectionTable(report.outcomes), 'Update results');
+    const details = report.outcomes.flatMap((row) => [
+      `${row.key}: Git ${row.gitStatus} ? graph ${row.graphStatus} ? Git ${(row.gitMs / 1000).toFixed(1)}s / graph ${(row.graphMs / 1000).toFixed(1)}s`,
+      ...(row.error ? [`${row.errorCode}: ${row.error}`] : []), ...row.notices,
+    ]);
+    details.push(...report.aggregates.map((a) => `${a.technology} aggregate: ${a.status}${a.error ? ` ? ${a.error}` : ''}`));
+    details.push(`Total wall time: ${(report.durationMs / 1000).toFixed(1)}s`, `Log: ${report.logPath}`);
+    clack.note(details.join('\n'), 'Details');
   }
 
   private async projectDetailFlow(root: string): Promise<void> {
@@ -556,61 +508,7 @@ export class ConsoleUiService {
   }
 
   private async runSingleInspection(root: string, repository: StoredRepository, force: boolean, pullFirst = false): Promise<void> {
-    const clack = await this.prompts.load();
-    const startedAt = Date.now();
-    if (pullFirst) {
-      const gitSpinner = clack.spinner({ indicator: 'timer' });
-      gitSpinner.start(`Pulling latest code for ${repository.key} from ${repository.path}...`);
-      try {
-        const result = await this.git.pull(repository);
-        gitSpinner.stop(describeRepositoryPull(result));
-        clack.note([
-          `Original folder: ${result.repositoryPath}`,
-          `Git root: ${result.repositoryRoot}`,
-          `Branch: ${result.branch}`,
-          `Upstream: ${result.upstream}`,
-          `Commit before: ${result.beforeCommit}`,
-          `Commit after: ${result.afterCommit}`,
-          result.output ? `\n${result.output}` : '',
-        ].filter(Boolean).join('\n'), 'Git pull result');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        gitSpinner.error(message);
-        clack.note(this.presenter.inspectionTable([{
-          key: repository.key,
-          ok: false,
-          durationMs: Date.now() - startedAt,
-          error: message,
-        }]), 'Graph update skipped');
-        return;
-      }
-    }
-
-    const spinner = clack.spinner({ indicator: 'timer' });
-    spinner.start(`${force ? 'Rebuilding' : 'Updating'} ${repository.key}...`);
-    try {
-      const result = await this.graphify.inspect(root, repository, { force });
-      spinner.stop(`Graph ready in ${(result.durationMs / 1000).toFixed(1)}s.`);
-      clack.note(this.presenter.inspectionTable([{
-        key: repository.key,
-        ok: true,
-        nodeCount: result.nodeCount,
-        edgeCount: result.edgeCount,
-        communityCount: result.communityCount,
-        durationMs: Date.now() - startedAt,
-        clustered: result.clustered,
-      }]), 'Scan results');
-      const annotations = result.notices.map((notice) => `${notice.impact}: ${notice.message}`);
-      if (annotations.length > 0) clack.note(annotations.join('\n'), 'Notices and warnings');
-    } catch (error) {
-      spinner.error(error instanceof Error ? error.message : String(error));
-      clack.note(this.presenter.inspectionTable([{
-        key: repository.key,
-        ok: false,
-        durationMs: Date.now() - startedAt,
-        error: error instanceof Error ? error.message : String(error),
-      }]), 'Scan results');
-    }
+    await this.runUpdates(root, [repository], { force, pull: pullFirst });
   }
 
   private async queryFlow(root: string, repository: StoredRepository, action: 'query' | 'explain'): Promise<void> {

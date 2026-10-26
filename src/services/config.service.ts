@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, writeFileSync, statSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { parse, stringify } from 'yaml';
 import { WorkspaceConfigValidationService } from './config-validation.service';
@@ -14,6 +14,7 @@ export interface RepositoryRootConfig {
 
 @Injectable()
 export class WorkspaceConfigService {
+  private readonly cache = new Map<string, { stamp: string; value: Record<string, any> }>();
   constructor(
     private readonly validation: WorkspaceConfigValidationService = new WorkspaceConfigValidationService(),
   ) {}
@@ -24,6 +25,10 @@ export class WorkspaceConfigService {
 
   load(root: string): Record<string, any> {
     const current = this.configPath(root);
+    const stat = existsSync(current) ? statSync(current) : undefined;
+    const stamp = stat ? `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}` : 'absent';
+    const cached = this.cache.get(current);
+    if (cached?.stamp === stamp) return structuredClone(cached.value);
     const path = current;
     const parsed = existsSync(current) ? this.parseYaml(current) : {};
     const migrated = this.migrateLegacyConfiguration(parsed);
@@ -33,6 +38,7 @@ export class WorkspaceConfigService {
       name: String(workspace.name ?? (basename(resolve(root)) || 'Technology Context Workspace')),
     });
     this.validation.validate(resolved, existsSync(path) ? path : this.configPath(root));
+    this.cache.set(current, { stamp, value: structuredClone(resolved) });
     return resolved;
   }
 
@@ -42,6 +48,7 @@ export class WorkspaceConfigService {
     const temporary = `${path}.tmp`;
     writeFileSync(temporary, stringify(config, { indent: 2, lineWidth: 120 }), 'utf8');
     renameSync(temporary, path);
+    this.cache.delete(path);
   }
 
   ensureDefault(root: string, workspace: { id: string; name: string }): Record<string, any> {

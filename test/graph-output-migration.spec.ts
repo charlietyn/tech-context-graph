@@ -60,11 +60,15 @@ describe('managed graph output migration', () => {
     await graphify.query(root, migrated, 'query', 'A');
     expect(capture).toHaveBeenCalledWith(['query', 'A', '--graph', graphPath]);
     jest.spyOn(graphify as any, 'spawnGraphify').mockImplementation(async (...args: any[]) => {
-      expect(args[0]).toEqual(expect.arrayContaining(['--out', destination]));
+      const target = args[0][args[0].indexOf('--out') + 1];
+      expect(target.startsWith(resolve(destination, '.generations'))).toBe(true);
+      mkdirSync(resolve(target, 'graphify-out'), { recursive: true });
+      writeFileSync(resolve(target, 'graphify-out', 'graph.json'), graph);
     });
     jest.spyOn(graphify as any, 'estimateTrackedFiles').mockReturnValue(1);
-    jest.spyOn(graphify, 'version').mockReturnValue('test');
-    expect((await graphify.inspect(root, migrated)).graphPath).toBe(graphPath);
+    jest.spyOn(graphify, 'version').mockResolvedValue('test');
+    expect((await graphify.inspect(root, migrated)).graphPath).toContain('.generations');
+    expect(readFileSync(graphPath, 'utf8')).toBe(graph);
     expect(existsSync(oldOutput)).toBe(false);
     reopened.close();
     const again = new SqliteDatabaseService();

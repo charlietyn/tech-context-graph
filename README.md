@@ -321,3 +321,7 @@ The current release is a CLI-first local control plane. The service boundaries a
 ## License
 
 Released under the [MIT License](LICENSE).
+
+### Efficient repository updates
+
+`tcg repository:inspect all --pull` uses the same coordinator as the interactive menu. Git pulls are grouped by real root; Graphify only extracts changed inputs, and each affected technology aggregate is refreshed once. The initial menu shows stored state while freshness is checked asynchronously. Logs include separate Git/graph outcomes and wall-clock timings. See [update, local-ignore migration and recovery rules](docs/en/15-git-pull-before-inspection.md). Run `node scripts/verify-update.cjs` after building for a real Graphify smoke test against temporary local repositories.

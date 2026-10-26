@@ -36,3 +36,5 @@ When inspection fails:
 6. run reconciliation if a process was interrupted.
 
 Never interpret a `FAILED` graph as usable current context.
+
+New inspections publish validated generations through `tcg-current.json`; SQLite stores their concrete paths. Unchanged updates skip extraction. A failed run preserves the previous valid graph. See [update and recovery behavior](15-git-pull-before-inspection.md).

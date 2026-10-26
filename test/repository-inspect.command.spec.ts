@@ -70,52 +70,21 @@ describe('RepositoryInspectCommand --pull', () => {
     process.exitCode = undefined;
   });
 
-  it('does not start Graphify when git pull fails', async () => {
+  it('reports failures from the shared coordinator', async () => {
     const item = repository('core');
-    const repositories = { get: jest.fn().mockResolvedValue(item) };
-    const graphify = { inspect: jest.fn() };
-    const git = { pull: jest.fn().mockRejectedValue(new Error('working tree has local changes')) };
-    const command = new RepositoryInspectCommand(
-      repositories as never,
-      graphify as never,
-      new RepositoryUiPresenterService(),
-      git as never,
-    );
-
+    const updates = { run: jest.fn().mockResolvedValue({ outcomes: [{ key: 'core', ok: false, status: 'BLOCKED', gitStatus: 'BLOCKED', graphStatus: 'PRESERVED', durationMs: 1, notices: [], errorCode: 'LOCAL_CHANGES', error: 'local changes' }], aggregates: [], durationMs: 1, logPath: 'test.log' }) };
+    const command = new RepositoryInspectCommand({ get: jest.fn().mockResolvedValue(item) } as never, updates as never, new RepositoryUiPresenterService());
     await command.run(['core'], { workspace, pull: true });
-
-    expect(git.pull).toHaveBeenCalledWith(item);
-    expect(graphify.inspect).not.toHaveBeenCalled();
+    expect(updates.run).toHaveBeenCalledWith(workspace, [item], expect.objectContaining({ pull: true }));
     expect(process.exitCode).toBe(1);
   });
 
-  it('pulls a shared original folder once and inspects every selected source folder', async () => {
-    const first = repository('core');
-    const second = repository('common');
-    const repositories = { get: jest.fn().mockImplementation(async (_workspace: string, key: string) => key === 'core' ? first : second) };
-    const graphify = { inspect: jest.fn().mockResolvedValue({
-      graphPath: 'D:\\graphs\\graph.json',
-      nodeCount: 10,
-      edgeCount: 12,
-      communityCount: 2,
-      durationMs: 5,
-      notices: [],
-      clustered: true,
-    }) };
-    const git = { pull: jest.fn().mockResolvedValue(pullResult(first)) };
-    const command = new RepositoryInspectCommand(
-      repositories as never,
-      graphify as never,
-      new RepositoryUiPresenterService(),
-      git as never,
-    );
-
-    await command.run(['core', 'common'], { workspace, pull: true });
-
-    expect(git.pull).toHaveBeenCalledTimes(1);
-    expect(graphify.inspect).toHaveBeenCalledTimes(2);
-    expect(graphify.inspect.mock.calls[0][1].sourcePath).toBe(first.sourcePath);
-    expect(graphify.inspect.mock.calls[1][1].sourcePath).toBe(second.sourcePath);
+  it('supports all through the same coordinator', async () => {
+    const items = [repository('core'), repository('common')];
+    const updates = { run: jest.fn().mockResolvedValue({ outcomes: [], aggregates: [], durationMs: 1, logPath: 'test.log' }) };
+    const command = new RepositoryInspectCommand({ list: jest.fn().mockResolvedValue(items) } as never, updates as never, new RepositoryUiPresenterService());
+    await command.run(['all'], { workspace, pull: true });
+    expect(updates.run).toHaveBeenCalledWith(workspace, items, expect.objectContaining({ pull: true }));
     expect(process.exitCode).toBeUndefined();
   });
 });

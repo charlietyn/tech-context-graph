@@ -39,6 +39,8 @@ export interface StoredRepository {
   lastError?: string;
   sourceFingerprint?: string;
   currentFingerprint?: string;
+  freshnessCheckedAt?: string;
+  freshnessError?: string;
 }
 
 export interface InspectionResult {

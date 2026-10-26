@@ -32,3 +32,5 @@ Usa **Update graph** después de cambios normales: Graphify puede reutilizar res
 6. Reconcilia el estado si el proceso se interrumpió.
 
 Nunca utilices un grafo `FAILED` como contexto vigente.
+
+Las nuevas inspecciones publican generaciones validadas mediante `tcg-current.json`; la ruta concreta est? en SQLite. Una actualizaci?n sin cambios no vuelve a extraer. Se conserva el ?ltimo grafo v?lido si falla la siguiente ejecuci?n. Consulta el detalle de [actualizaci?n y recuperaci?n](15-git-pull-antes-inspeccion.md).

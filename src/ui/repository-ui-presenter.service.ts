@@ -17,6 +17,7 @@ export interface InspectionRow {
   durationMs: number;
   clustered?: boolean;
   error?: string;
+  status?: string;
 }
 
 @Injectable()
@@ -112,8 +113,14 @@ export class RepositoryUiPresenterService {
 
   /** Renders an aligned monospace table; numeric columns (align 'r') are right-justified. */
   formatTable(headers: string[], rows: string[][], align: Array<'l' | 'r'> = []): string {
+    rows = rows.map((row) => row.map((cell) => cell.replace(/[\x00-\x1f\x7f]/g, ' ')));
     const widths = headers.map((header, column) =>
       Math.max(header.length, ...rows.map((row) => (row[column] ?? '').length)));
+    const available = Math.max(24, (process.stdout.columns || 120) - 8);
+    if (widths.reduce((a, b) => a + b, 0) + (widths.length - 1) * 2 > available) {
+      const wrap = (text: string) => Array.from({ length: Math.ceil(text.length / available) }, (_, i) => text.slice(i * available, (i + 1) * available)).join('\n');
+      return rows.map((row) => row.map((value, i) => wrap(`${headers[i]}: ${value}`)).join('\n')).join('\n\n');
+    }
     const pad = (value: string, column: number): string => {
       const width = widths[column];
       return (align[column] ?? 'l') === 'r' ? value.padStart(width) : value.padEnd(width);
@@ -129,7 +136,7 @@ export class RepositoryUiPresenterService {
     const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
     const body = rows.map((row) => [
       `${row.ok ? '●' : '!'} ${row.key}`,
-      row.ok ? 'READY' : 'FAILED',
+      row.status ?? (row.ok ? 'READY' : 'FAILED'),
       row.ok ? number(row.nodeCount) : '—',
       row.ok ? number(row.edgeCount) : '—',
       row.ok ? number(row.communityCount) : '—',
@@ -173,6 +180,8 @@ export class RepositoryUiPresenterService {
       `Source folder: ${repository.sourcePath}`,
       `Detection confidence: ${repository.confidence}%`,
       `Last inspection: ${repository.lastInspectionAt ?? 'never'}`,
+      `Freshness verified: ${repository.freshnessCheckedAt ?? 'pending'}`,
+      ...(repository.freshnessError ? [`Freshness check: ${repository.freshnessError}`] : []),
       `Nodes / edges: ${repository.nodeCount ?? '-'} / ${repository.edgeCount ?? '-'}`,
       repository.lastError ? `Last error: ${repository.lastError}` : '',
     ].filter(Boolean);

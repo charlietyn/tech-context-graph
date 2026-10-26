@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import { cp, mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { runProcess, OperationError } from './process-runner';
+import { acquireLock } from './operation-lock';
+import { scopedGitEnvironment } from './git-access';
+import { createWriteStream, existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, resolve, relative, isAbsolute } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
 import { RepositoryFingerprintService } from './repository-fingerprint.service';
@@ -35,6 +39,8 @@ export interface GraphifyInspectionResult {
   notices: InspectionNotice[];
   clustered: boolean;
   aggregateGraphPath?: string;
+  unchanged?: boolean;
+  logPath?: string;
 }
 
 /**
@@ -114,112 +120,148 @@ export class GraphifyCliService {
     private readonly ignores?: GraphifyIgnoreService,
   ) {}
 
+  private versionCache?: { path: string; checkedAt: number; promise: Promise<string> };
+  private helpCache?: Promise<string>;
+  cachedVersion = 'checking';
+
   async inspect(workspaceRoot: string, repository: StoredRepository, options: {
-    force?: boolean;
-    noCluster?: boolean;
-    onLine?: (line: string) => void;
-    onProgress?: (progress: InspectionProgress) => void;
+    force?: boolean; noCluster?: boolean; signal?: AbortSignal; deferAggregate?: boolean;
+    onLine?: (line: string) => void; onProgress?: (progress: InspectionProgress) => void;
   } = {}): Promise<GraphifyInspectionResult> {
-    if (!existsSync(repository.sourcePath)) throw new Error(`The source folder no longer exists: ${repository.sourcePath}`);
-    const started = Date.now();
-    const notices: InspectionNotice[] = [];
     const output = resolveGraphOutput(workspaceRoot, repository.graphOutput);
-    mkdirSync(output, { recursive: true });
-    const logPath = resolve(workspaceRoot, '.tcg', 'logs', `${repository.key}-${Date.now()}.log`);
-    mkdirSync(dirname(logPath), { recursive: true });
-    const args = ['extract', repository.sourcePath, '--code-only', '--out', output];
-    const ignorePatterns = this.ignores?.patterns(repository.ignoreProfile) ?? [];
-    for (const pattern of ignorePatterns) args.push('--exclude', pattern);
-    if (ignorePatterns.length > 0) notices.push({
-      impact: 'minor',
-      message: `Applied ${ignorePatterns.length} managed ignore rule(s) from common and ${repository.ignoreProfile} profiles.`,
-    });
-    if (options.force) args.push('--force');
-    const estimatedFiles = this.estimateTrackedFiles(repository.sourcePath);
-    const skipClustering = options.noCluster === true || (estimatedFiles !== undefined && estimatedFiles >= 10_000);
-    if (skipClustering) {
-      args.push('--no-cluster');
-      notices.push({
-        impact: 'important',
-        message: `Clustering was skipped to avoid exhausting memory (${estimatedFiles?.toLocaleString() ?? 'many'} tracked files). The structural graph is usable; community analysis can be generated later on a larger machine.`,
-      });
+    const release = await acquireLock(resolve(output, '.tcg-inspection.lock'));
+    try { return await this.inspectLocked(workspaceRoot, repository, output, options); }
+    finally { await release(); }
+  }
+
+  private async inspectLocked(workspaceRoot: string, repository: StoredRepository, output: string, options: {
+    force?: boolean; noCluster?: boolean; signal?: AbortSignal; deferAggregate?: boolean;
+    onLine?: (line: string) => void; onProgress?: (progress: InspectionProgress) => void;
+  }): Promise<GraphifyInspectionResult> {
+    if (!existsSync(repository.sourcePath)) throw new Error(`Source folder missing: ${repository.sourcePath}`);
+    const started = Date.now();
+    const version = await this.version();
+    if (version === 'unknown') throw new Error('Graphify is unavailable.');
+    const ignores = this.ignores?.patterns(repository.ignoreProfile) ?? [];
+    const configuration = createHash('sha256').update(JSON.stringify({
+      schema: 2, source: resolve(repository.sourcePath), ignores, version, noCluster: options.noCluster ?? 'auto-10000', codeOnly: true,
+    })).digest('hex');
+    const fingerprint = await this.fingerprints.calculate(repository, options.signal);
+    const pointer = resolve(output, 'tcg-current.json');
+    const previous = this.readPublication(output);
+    const priorGraph = this.publishedGraph(output, previous);
+    let previousValid = false;
+    if (priorGraph && existsSync(priorGraph)) {
+      try {
+        previousValid = createHash('sha256').update(await readFile(priorGraph)).digest('hex') === previous.graphDigest
+          && this.graphCounts(priorGraph).danglingEdges === 0;
+      } catch { /* A corrupt generation must not seed the next incremental extraction. */ }
     }
-    const fingerprint = this.fingerprints.calculate(repository);
-    const commandText = `graphify ${args.map(this.quote).join(' ')}`;
-    const inspectionId = await this.store.beginInspection(workspaceRoot, repository, fingerprint, commandText, logPath);
+    if (!options.force && previous?.configuration === configuration && previous.fingerprint === fingerprint) {
+      const graphPath = this.publishedGraph(output, previous);
+      if (graphPath && previousValid) {
+        const counts = this.graphCounts(graphPath);
+        if (counts.danglingEdges === 0) {
+          if (repository.inspectionStatus !== 'READY') {
+            const verificationLog = resolve(workspaceRoot, '.tcg', 'logs', `verification-${randomUUID()}.log`);
+            await mkdir(dirname(verificationLog), { recursive: true });
+            await writeFile(verificationLog, `Verified existing publication ${graphPath}\nSource fingerprint: ${fingerprint}\n`);
+            const inspectionId = await this.store.beginInspection(workspaceRoot, repository, fingerprint, 'tcg verified existing publication', verificationLog);
+            const updated = { ...previous, inspectionId };
+            const temp = `${pointer}.${randomUUID()}.tmp`;
+            await writeFile(temp, JSON.stringify(updated, null, 2)); await rename(temp, pointer);
+            await this.store.completeInspection(workspaceRoot, inspectionId, { status: 'READY', graphJsonPath: graphPath, graphifyVersion: version, nodeCount: counts.nodes, edgeCount: counts.edges });
+          }
+          return {
+            graphPath, nodeCount: counts.nodes, edgeCount: counts.edges, communityCount: previous.communityCount,
+            durationMs: Date.now() - started, notices: [], clustered: previous.clustered, unchanged: true,
+          };
+        }
+      }
+    }
+    const runId = randomUUID();
+    const generation = resolve(output, '.generations', runId);
+    await mkdir(generation, { recursive: true });
+    const logPath = resolve(workspaceRoot, '.tcg', 'logs', `inspection-${runId}.log`);
+    await mkdir(dirname(logPath), { recursive: true });
+    const notices: InspectionNotice[] = [];
+    const help = await (this.helpCache ??= runProcess('graphify', ['--help'], { timeoutMs: 15_000 }).then((r) => r.stdout));
+    // Installed extract supports incremental manifests with --out; retain its whole generation.
+    const incremental = /incremental/i.test(help) && /--out/.test(help);
+    if (incremental && !options.force && previousValid && previous?.configuration === configuration) {
+      if (priorGraph && existsSync(priorGraph)) {
+        await cp(dirname(dirname(priorGraph)), generation, { recursive: true });
+      }
+    }
+    const estimatedFiles = options.noCluster ? undefined : await this.estimateTrackedFiles(repository.sourcePath, options.signal);
+    const skipClustering = options.noCluster === true || (estimatedFiles !== undefined && estimatedFiles >= 10_000);
+    const args = ['extract', repository.sourcePath, '--code-only', '--out', generation];
+    for (const pattern of ignores) args.push('--exclude', pattern);
+    if (options.force || !incremental) args.push('--force');
+    if (skipClustering) args.push('--no-cluster');
+    const inspectionId = await this.store.beginInspection(workspaceRoot, repository, fingerprint, `graphify ${args.map(this.quote).join(' ')}`, logPath);
     const log = createWriteStream(logPath, { flags: 'a' });
+    let logError: Error | undefined;
+    log.on('error', (error) => { logError = error; });
     let communityCount: number | undefined;
     try {
       options.onProgress?.({ stage: 'preparing', percent: 1, message: 'Preparing Graphify' });
       await this.spawnGraphify(args, (line) => {
-        log.write(`${line}\n`);
-        options.onLine?.(line);
-        const progress = graphifyProgressFromLine(line);
-        if (progress) options.onProgress?.(progress);
-        const summary = graphSummaryFromLine(line);
-        if (summary) communityCount = summary.communities;
-        const notice = noticeFromLine(line);
-        if (notice && !notices.some((item) => item.message === notice.message)) notices.push(notice);
-      });
-      options.onProgress?.({ stage: 'writing', percent: 98, message: 'Validating graph.json' });
-      const graphPath = this.resolveGraphPath(output);
-      if (!existsSync(graphPath)) {
-        throw new Error(
-          `Graphify finished without creating a graph.json under ${output}. `
-          + `Checked ${resolve(output, 'graph.json')} and ${resolve(output, 'graphify-out', 'graph.json')}.`,
-        );
-      }
+        log.write(`${line}\n`); options.onLine?.(line);
+        const progress = graphifyProgressFromLine(line); if (progress) options.onProgress?.(progress);
+        const summary = graphSummaryFromLine(line); if (summary) communityCount = summary.communities;
+        const notice = noticeFromLine(line); if (notice && !notices.some((n) => n.message === notice.message)) notices.push(notice);
+      }, options.signal);
+      if (logError) throw logError;
+      options.onProgress?.({ stage: 'writing', percent: 98, message: 'Validating new graph' });
+      const graphPath = this.resolveGraphPath(generation);
       let counts = this.graphCounts(graphPath);
-      if (counts.danglingEdges > 0) {
+      if (counts.danglingEdges) {
         const removed = this.removeDanglingEdges(graphPath);
-        notices.push({
-          impact: 'important',
-          message: `Removed ${removed} invalid edge(s) whose endpoints were excluded or missing; all remaining edges passed integrity validation.`,
-        });
+        notices.push({ impact: 'important', message: `Removed ${removed} dangling edges before publication.` });
         counts = this.graphCounts(graphPath);
-        if (counts.danglingEdges > 0) {
-          throw new Error(`Graph integrity repair failed: ${counts.danglingEdges} dangling edge(s) remain in ${graphPath}.`);
-        }
       }
+      if (counts.danglingEdges) throw new Error('Graph integrity validation failed.');
+      if (await this.fingerprints.calculate(repository, options.signal) !== fingerprint) {
+        throw new OperationError('SOURCE_CHANGED', 'Source changed during extraction; the previous graph was preserved.');
+      }
+      if (options.signal?.aborted) throw new OperationError('CANCELLED', 'Inspection cancelled before publication.');
+      const publication = {
+        schema: 2, inspectionId, fingerprint, configuration, graphifyVersion: version,
+        graph: relative(output, graphPath), graphDigest: createHash('sha256').update(await readFile(graphPath)).digest('hex'),
+        clustered: !skipClustering, communityCount, publishedAt: new Date().toISOString(),
+      };
+      const temporary = `${pointer}.${runId}.tmp`;
+      await writeFile(temporary, JSON.stringify(publication, null, 2));
+      await rename(temporary, pointer);
       await this.store.completeInspection(workspaceRoot, inspectionId, {
-        status: 'READY', graphJsonPath: graphPath, graphifyVersion: this.version(),
-        nodeCount: counts.nodes, edgeCount: counts.edges,
+        status: 'READY', graphJsonPath: graphPath, graphifyVersion: version, nodeCount: counts.nodes, edgeCount: counts.edges,
       });
       let aggregateGraphPath: string | undefined;
-      try {
-        const aggregate = await this.technologyGraphs?.refresh(workspaceRoot, repository.technology);
-        if (aggregate) {
-          aggregateGraphPath = aggregate.graphPath;
-          notices.push({
-            impact: 'minor',
-            message: `Refreshed ${repository.technologyLabel} aggregate graph from ${aggregate.members.length} repositories (${aggregate.nodeCount} nodes, ${aggregate.edgeCount} edges).`,
-          });
-        }
-      } catch (error) {
-        notices.push({
-          impact: 'important',
-          message: `The member graph is ready, but its technology aggregate could not be refreshed: ${error instanceof Error ? error.message : String(error)}`,
-        });
+      if (!options.deferAggregate) {
+        try { aggregateGraphPath = (await this.technologyGraphs?.refresh(workspaceRoot, repository.technology))?.graphPath; }
+        catch (error) { notices.push({ impact: 'important', message: `Aggregate failed: ${error instanceof Error ? error.message : String(error)}` }); }
       }
-      options.onProgress?.({ stage: 'complete', percent: 100, message: 'Graph validated' });
-      return {
-        graphPath,
-        nodeCount: counts.nodes,
-        edgeCount: counts.edges,
-        communityCount,
-        durationMs: Date.now() - started,
-        notices,
-        clustered: !skipClustering,
-        aggregateGraphPath,
-      };
+      options.onProgress?.({ stage: 'complete', percent: 100, message: 'Graph published' });
+      return { graphPath, nodeCount: counts.nodes, edgeCount: counts.edges, communityCount, durationMs: Date.now() - started,
+        notices, clustered: !skipClustering, aggregateGraphPath, logPath };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log.write(`ERROR: ${message}\n`);
       await this.store.completeInspection(workspaceRoot, inspectionId, { status: 'FAILED', errorMessage: message });
       throw error;
-    } finally {
-      log.end();
-    }
+    } finally { await new Promise<void>((done) => log.end(done)); }
+  }
+
+  readPublication(output: string): any | undefined {
+    try { return JSON.parse(readFileSync(resolve(output, 'tcg-current.json'), 'utf8')); } catch { return undefined; }
+  }
+
+  private publishedGraph(output: string, publication: any): string | undefined {
+    if (typeof publication?.graph !== 'string' || isAbsolute(publication.graph)) return undefined;
+    const path = resolve(output, publication.graph);
+    const rel = relative(resolve(output, '.generations'), path);
+    return rel && !rel.startsWith('..') && !isAbsolute(rel) ? path : undefined;
   }
 
   async query(workspaceRoot: string, repository: StoredRepository, action: 'query' | 'explain' | 'path', input: string, second?: string): Promise<GraphCommandResult> {
@@ -249,20 +291,28 @@ export class GraphifyCliService {
     }
   }
 
-  version(): string {
-    const result = spawnSync('graphify', ['--version'], { encoding: 'utf8', shell: false });
-    return result.status === 0 ? result.stdout.trim() : 'unknown';
+  async version(): Promise<string> {
+    const path = process.env.PATH ?? '';
+    if (!this.versionCache || this.versionCache.path !== path || Date.now() - this.versionCache.checkedAt > 60_000) {
+      this.helpCache = undefined;
+      this.versionCache = { path, checkedAt: Date.now(), promise: runProcess('graphify', ['--version'], { timeoutMs: 10_000 })
+        .then((r) => r.exitCode === 0 ? r.stdout.trim() : 'unknown').catch(() => 'unknown')
+        .then((value) => { this.cachedVersion = value; return value; }) };
+    }
+    return this.versionCache.promise;
   }
 
-  isAvailable(): boolean {
-    return spawnSync('graphify', ['--version'], { encoding: 'utf8', shell: false }).status === 0;
-  }
+  invalidateVersion(): void { this.versionCache = undefined; this.helpCache = undefined; this.cachedVersion = 'checking'; }
+  async isAvailable(): Promise<boolean> { return await this.version() !== 'unknown'; }
 
   graphCounts(graphPath: string): { nodes: number; edges: number; danglingEdges: number } {
     const graph = JSON.parse(readFileSync(graphPath, 'utf8')) as any;
+    if (!Array.isArray(graph.nodes) && !Array.isArray(graph.elements?.nodes)) throw new Error('Invalid graph: nodes must be an array.');
+    if (!Array.isArray(graph.links) && !Array.isArray(graph.edges) && !Array.isArray(graph.elements?.edges)) throw new Error('Invalid graph: edges must be an array.');
     const nodeItems = Array.isArray(graph.nodes) ? graph.nodes : Array.isArray(graph.elements?.nodes) ? graph.elements.nodes : [];
     const edgeItems = Array.isArray(graph.links) ? graph.links : Array.isArray(graph.edges) ? graph.edges : Array.isArray(graph.elements?.edges) ? graph.elements.edges : [];
     const ids = new Set(nodeItems.map((node: any) => String(node.id)));
+    if (ids.size !== nodeItems.length || nodeItems.some((node: any) => node.id === undefined || node.id === null)) throw new Error('Invalid graph node IDs.');
     const endpoint = (edge: any, primary: string, fallback: string): string => {
       const value = edge[primary] ?? edge[fallback];
       return String(typeof value === 'object' && value !== null ? value.id : value);
@@ -307,81 +357,32 @@ export class GraphifyCliService {
   }
 
   resolveGraphPath(output: string): string {
+    const published = this.publishedGraph(output, this.readPublication(output));
+    if (published && existsSync(published)) return published;
     const direct = resolve(output, 'graph.json');
     if (existsSync(direct)) return direct;
     return resolve(output, 'graphify-out', 'graph.json');
   }
 
-  private async spawnGraphify(args: string[], onLine: (line: string) => void): Promise<void> {
-    await new Promise<void>((resolvePromise, reject) => {
-      const child = spawn('graphify', args, { shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
-      let stderr = '';
-      let settled = false;
-      const cleanup = () => {
-        process.removeListener('SIGINT', interrupt);
-        process.removeListener('SIGTERM', interrupt);
-      };
-      const finish = (callback: () => void) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        callback();
-      };
-      const interrupt = () => {
-        this.terminateProcessTree(child.pid);
-        finish(() => reject(new Error('Graphify inspection was cancelled; child processes were terminated.')));
-      };
-      process.once('SIGINT', interrupt);
-      process.once('SIGTERM', interrupt);
-      const wire = (chunk: Buffer, isError: boolean) => {
-        const text = chunk.toString();
-        if (isError) stderr += text;
-        for (const line of text.split(/\r?\n/).filter(Boolean)) onLine(line);
-      };
-      child.stdout.on('data', (chunk: Buffer) => wire(chunk, false));
-      child.stderr.on('data', (chunk: Buffer) => wire(chunk, true));
-      child.on('error', (error) => finish(() => reject(error)));
-      child.on('close', (code) => finish(() => code === 0
-        ? resolvePromise()
-        : reject(new Error(describeExitFailure(code, stderr)))));
-    });
-  }
-
-  private terminateProcessTree(pid: number | undefined): void {
-    if (!pid) return;
-    if (process.platform === 'win32') {
-      spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { shell: false, stdio: 'ignore' });
-      return;
-    }
-    try { process.kill(pid, 'SIGTERM'); } catch { /* The process already exited. */ }
+  private async spawnGraphify(args: string[], onLine: (line: string) => void, signal?: AbortSignal): Promise<void> {
+    const result = await runProcess('graphify', args, { onLine, signal, timeoutMs: 30 * 60_000, env: scopedGitEnvironment(args[1]) });
+    if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
   }
 
   private async captureGraphify(args: string[]): Promise<GraphCommandResult> {
-    const started = Date.now();
-    return await new Promise<GraphCommandResult>((resolvePromise, reject) => {
-      const child = spawn('graphify', args, { shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
-      let stdout = '';
-      let stderr = '';
-      child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-      child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
-      child.on('error', reject);
-      child.on('close', (code) => code === 0
-        ? resolvePromise({ output: stdout.trim(), exitCode: 0, durationMs: Date.now() - started })
-        : reject(new Error(describeExitFailure(code, stderr))));
-    });
+    const result = await runProcess('graphify', args, { timeoutMs: 120_000 });
+    if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
+    return { output: result.stdout.trim(), exitCode: 0, durationMs: result.durationMs };
   }
 
   private quote(value: string): string {
     return /\s/.test(value) ? JSON.stringify(value) : value;
   }
 
-  private estimateTrackedFiles(repositoryPath: string): number | undefined {
-    const result = spawnSync('rg', ['--files', repositoryPath], {
-      encoding: 'utf8',
-      shell: false,
-      maxBuffer: 32 * 1024 * 1024,
-    });
-    if (result.status !== 0 && !result.stdout) return undefined;
-    return result.stdout.split(/\r?\n/).filter(Boolean).length;
+  private async estimateTrackedFiles(repositoryPath: string, signal?: AbortSignal): Promise<number | undefined> {
+    try {
+      const result = await runProcess('rg', ['--files', repositoryPath], { timeoutMs: 30_000, signal });
+      return result.exitCode === 0 ? result.stdout.split(/\r?\n/).filter(Boolean).length : undefined;
+    } catch (error) { if (signal?.aborted) throw error; return undefined; }
   }
 }

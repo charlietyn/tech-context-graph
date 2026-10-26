@@ -1,3 +1,4 @@
+import { RepositoryUpdateService } from './services/repository-update.service';
 import { Module } from '@nestjs/common';
 import { StartCommand } from './commands/start.command';
 import { DoctorCommand } from './commands/doctor.command';
@@ -41,6 +42,7 @@ import { RepositoryGitService } from './services/repository-git.service';
     RepositoryDiscoveryService,
     RepositoryFingerprintService,
     RepositoryGitService,
+    RepositoryUpdateService,
     GraphifyCliService,
     InspectionReconcileService,
     RepositoryControlService,

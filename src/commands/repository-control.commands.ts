@@ -1,11 +1,9 @@
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { RepositoryControlService } from '../services/repository-control.service';
-import { GraphifyCliService } from '../services/graphify-cli.service';
 import { InspectionReconcileService } from '../services/inspection-reconcile.service';
-import { InspectionRow, RepositoryUiPresenterService } from '../ui/repository-ui-presenter.service';
+import { RepositoryUiPresenterService } from '../ui/repository-ui-presenter.service';
 import { resolveWorkspacePath } from './common-options';
-import { resolve } from 'node:path';
-import { describeRepositoryPull, RepositoryGitService, RepositoryPullResult } from '../services/repository-git.service';
+import { RepositoryUpdateService } from '../services/repository-update.service';
 
 interface Options {
   workspace?: string; root?: string; json?: boolean; inspected?: boolean; maxDepth?: number; force?: boolean;
@@ -48,40 +46,28 @@ export class RepositoryScanCommand extends CommandRunner {
 export class RepositoryInspectCommand extends CommandRunner {
   constructor(
     private readonly repositories: RepositoryControlService,
-    private readonly graphify: GraphifyCliService,
+    private readonly updates: RepositoryUpdateService,
     private readonly presenter: RepositoryUiPresenterService,
-    private readonly git: RepositoryGitService,
   ) { super(); }
   async run(params: string[], options: Options): Promise<void> {
     const workspace = resolveWorkspacePath(options.workspace, options.root);
-    if (!params.length) throw new Error('Provide one or more repository keys. See: tcg repository:list');
-    const rows: InspectionRow[] = [];
-    const pullAttempts = new Map<string, { result?: RepositoryPullResult; error?: Error }>();
-    for (const key of params) {
-      const repository = await this.repositories.get(workspace, key);
-      console.log(`Inspecting ${repository.key}...`);
-      const startedAt = Date.now();
-      try {
-        if (options.pull) await this.pullOnce(repository, pullAttempts);
-        const result = await this.graphify.inspect(workspace, repository, { force: options.force, noCluster: options.noCluster, onLine: (line) => console.log(`  ${line}`) });
-        for (const notice of result.notices) console.log(`  ${notice.impact.toUpperCase()} NOTICE: ${notice.message}`);
-        console.log(`  graph.json -> ${result.graphPath}`);
-        rows.push({
-          key: repository.key,
-          ok: true,
-          nodeCount: result.nodeCount,
-          edgeCount: result.edgeCount,
-          communityCount: result.communityCount,
-          durationMs: Date.now() - startedAt,
-          clustered: result.clustered,
-        });
-      } catch (error) {
-        console.error(`  FAILED: ${error instanceof Error ? error.message : String(error)}`);
-        rows.push({ key: repository.key, ok: false, durationMs: Date.now() - startedAt, error: error instanceof Error ? error.message : String(error) });
-      }
+    if (!params.length) throw new Error('Provide repository keys or all. See: tcg repository:list');
+    const selected = params.length === 1 && params[0] === 'all'
+      ? await this.repositories.list(workspace)
+      : await Promise.all(params.map((key) => this.repositories.get(workspace, key)));
+    const report = await this.updates.run(workspace, selected, {
+      pull: options.pull, force: options.force, noCluster: options.noCluster,
+      onProgress: (message) => console.log(message),
+    });
+    console.log(this.presenter.inspectionTable(report.outcomes));
+    for (const row of report.outcomes) {
+      console.log(`${row.key}: Git ${row.gitStatus}; graph ${row.graphStatus}`);
+      if (row.error) console.error(`${row.errorCode}: ${row.error}`);
+      for (const notice of row.notices) console.log(notice);
     }
-    console.log(`\n${this.presenter.inspectionTable(rows)}`);
-    if (rows.some((row) => !row.ok)) process.exitCode = 1;
+    for (const aggregate of report.aggregates) console.log(`${aggregate.technology} aggregate: ${aggregate.status} ${aggregate.error ?? ''}`);
+    console.log(`Total: ${(report.durationMs / 1000).toFixed(1)}s. Log: ${report.logPath}`);
+    if (report.outcomes.some((row) => !row.ok) || report.aggregates.some((row) => ['FAILED', 'CANCELLED'].includes(row.status))) process.exitCode = 1;
   }
   @Option({ flags: '-w, --workspace <path>' }) parseWorkspace(value: string): string { return value; }
   @Option({ flags: '-r, --root <path>' }) parseRoot(value: string): string { return value; }
@@ -89,32 +75,6 @@ export class RepositoryInspectCommand extends CommandRunner {
   @Option({ flags: '--pull', description: 'Run git pull --ff-only in the original repository folder before Graphify.' }) parsePull(): boolean { return true; }
   @Option({ flags: '--no-cluster', description: 'Skip community clustering and generate only the structural graph.' }) parseNoCluster(): boolean { return true; }
 
-  private async pullOnce(
-    repository: Awaited<ReturnType<RepositoryControlService['get']>>,
-    attempts: Map<string, { result?: RepositoryPullResult; error?: Error }>,
-  ): Promise<void> {
-    const absolutePath = resolve(repository.path);
-    const key = process.platform === 'win32' ? absolutePath.toLowerCase() : absolutePath;
-    const previous = attempts.get(key);
-    if (previous?.error) throw previous.error;
-    if (previous?.result) {
-      console.log(`  Reusing Git pull result for shared repository path: ${repository.path}`);
-      console.log(`  ${describeRepositoryPull(previous.result)}`);
-      return;
-    }
-
-    console.log(`  Pulling ${repository.path}...`);
-    try {
-      const result = await this.git.pull(repository);
-      attempts.set(key, { result });
-      console.log(`  ${describeRepositoryPull(result)}`);
-      for (const line of result.output.split(/\r?\n/).filter(Boolean)) console.log(`  git: ${line}`);
-    } catch (error) {
-      const failure = error instanceof Error ? error : new Error(String(error));
-      attempts.set(key, { error: failure });
-      throw failure;
-    }
-  }
 }
 
 @Command({ name: 'repository:reconcile', description: 'Reconcile recorded inspection state with the graph.json files on disk.' })

@@ -52,7 +52,7 @@ function pullResult(item: StoredRepository): RepositoryPullResult {
 }
 
 describe('ConsoleUiService batch Git pull + Graphify update', () => {
-  it('lets the user select all entries, pulls a shared repository once and updates every graph', async () => {
+  it('delegates the all-repositories selection to the shared coordinator', async () => {
     const workspace = mkdtempSync(resolve(tmpdir(), 'tcg-ui-batch-pull-'));
     const sharedPath = resolve(workspace, 'shared-repository');
     const first = repository('api', sharedPath);
@@ -75,13 +75,14 @@ describe('ConsoleUiService batch Git pull + Graphify update', () => {
       autocompleteMultiselect: jest.fn(),
       confirm: jest.fn().mockResolvedValue(true),
       progress: jest.fn().mockReturnValue(progress),
+      spinner: jest.fn().mockReturnValue(progress),
       log: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), success: jest.fn() },
     };
     const prompts = {
       load: jest.fn().mockResolvedValue(clack),
       requireValue: jest.fn().mockImplementation(async (value: unknown) => value),
     };
-    const repositories = { list: jest.fn().mockResolvedValue([first, second]) };
+    const repositories = { list: jest.fn().mockResolvedValue([first, second]), invalidate: jest.fn(), refreshInBackground: jest.fn().mockResolvedValue(undefined) };
     const graphify = {
       isAvailable: jest.fn().mockReturnValue(true),
       version: jest.fn().mockReturnValue('test'),
@@ -95,7 +96,7 @@ describe('ConsoleUiService batch Git pull + Graphify update', () => {
         clustered: true,
       }),
     };
-    const git = { pull: jest.fn().mockResolvedValue(pullResult(first)) };
+    const updates = { run: jest.fn().mockResolvedValue({ outcomes: [], aggregates: [], durationMs: 1, logPath: 'test.log' }) };
     const roots = { list: jest.fn().mockResolvedValue([]) };
     const review = { listDetected: jest.fn().mockResolvedValue([]) };
     const registry = {
@@ -108,7 +109,7 @@ describe('ConsoleUiService batch Git pull + Graphify update', () => {
       repositories as never,
       {} as never,
       graphify as never,
-      git as never,
+      updates as never,
       roots as never,
       review as never,
       {} as never,
@@ -121,10 +122,7 @@ describe('ConsoleUiService batch Git pull + Graphify update', () => {
     await expect(ui.run(workspace)).resolves.toBe('EXIT');
 
     expect(clack.autocompleteMultiselect).not.toHaveBeenCalled();
-    expect(git.pull).toHaveBeenCalledTimes(1);
-    expect(git.pull).toHaveBeenCalledWith(first);
-    expect(graphify.inspect).toHaveBeenCalledTimes(2);
-    expect(graphify.inspect.mock.calls[0][1]).toBe(first);
-    expect(graphify.inspect.mock.calls[1][1]).toBe(second);
+    expect(updates.run).toHaveBeenCalledWith(workspace, [first, second], expect.objectContaining({ pull: true }));
+    expect(progress.stop).toHaveBeenCalled();
   });
 });

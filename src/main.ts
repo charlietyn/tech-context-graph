@@ -51,4 +51,8 @@ async function bootstrap(): Promise<void> {
   });
 }
 
-void bootstrap();
+void bootstrap().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message !== 'TCG_CANCELLED') console.error(`ERROR: ${message}`);
+  process.exitCode = message === 'TCG_CANCELLED' ? 0 : 2;
+});

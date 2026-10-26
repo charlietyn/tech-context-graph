@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { WorkspaceReference } from '../models/workspace';
 import { SqliteDatabaseService } from '../persistence/sqlite-database.service';
 import { WorkspaceConfigService } from './config.service';
 import { GlobalWorkspaceRegistryService } from './global-workspace-registry.service';
 import { WorkspaceMarkerService } from './workspace-marker.service';
+import { gitRoot } from './git-access';
+import { prepareExclusions } from './repository-exclusions';
 
 @Injectable()
 export class WorkspaceInitializerService {
@@ -25,7 +27,8 @@ export class WorkspaceInitializerService {
     const marker = this.markers.read(path) ?? this.markers.create(path, { name });
     this.config.ensureDefault(path, { id: marker.id, name: marker.name });
     await this.sqlite.open(path);
-    writeFileSync(resolve(path, '.gitignore'), this.defaultGitIgnore(), { encoding: 'utf8', flag: 'a' });
+    const repositoryRoot = gitRoot(path);
+    if (repositoryRoot) await prepareExclusions(repositoryRoot);
     return this.registry.register({ id: marker.id, name: marker.name, path, createdAt: marker.createdAt });
   }
 
@@ -37,7 +40,4 @@ export class WorkspaceInitializerService {
     return this.registry.register({ id: marker.id, name: marker.name, path, createdAt: marker.createdAt });
   }
 
-  private defaultGitIgnore(): string {
-    return '\n# Tech Context Graph local state\n.tcg/logs/\n.tcg/*.tmp\n';
-  }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { spawnSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { runProcess } from './process-runner';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
@@ -16,6 +17,7 @@ export interface TechnologyAggregateResult {
   members: string[];
   nodeCount: number;
   edgeCount: number;
+  unchanged?: boolean;
 }
 
 export interface TechnologyManifest {
@@ -97,7 +99,7 @@ export class TechnologyGraphService {
     return existsSync(candidate) ? candidate : undefined;
   }
 
-  async refresh(workspaceRoot: string, technology: string): Promise<TechnologyAggregateResult | undefined> {
+  async refresh(workspaceRoot: string, technology: string, signal?: AbortSignal): Promise<TechnologyAggregateResult | undefined> {
     if (!technology || technology === 'unknown') return undefined;
     await this.organize(workspaceRoot, technology);
     const members = (await this.store.list(workspaceRoot)).filter((item) =>
@@ -109,16 +111,30 @@ export class TechnologyGraphService {
     const outputRoot = resolveGraphOutput(workspaceRoot, technologyGraphOutput(technology));
     let graphPath = resolve(outputRoot, 'graph.json');
     mkdirSync(outputRoot, { recursive: true });
+    const signature = createHash('sha256');
+    for (const member of members) signature.update(member.key).update(member.graphJsonPath!).update(readFileSync(member.graphJsonPath!));
+    const inputSignature = signature.digest('hex');
+    const metadataPath = resolve(outputRoot, 'aggregate.json');
+    try {
+      const previous = JSON.parse(readFileSync(metadataPath, 'utf8'));
+      const previousPath = resolve(outputRoot, previous.graphPath);
+      if (previous.inputSignature === inputSignature && existsSync(previousPath)
+        && previous.graphDigest === createHash('sha256').update(readFileSync(previousPath)).digest('hex')) {
+        return { ...previous, graphPath: previousPath, unchanged: true };
+      }
+    } catch { /* Missing or invalid aggregate: retry without re-extracting members. */ }
+    const temporary = resolve(outputRoot, `.aggregate-${randomUUID()}.json`);
     if (members.length === 1) {
       graphPath = members[0].graphJsonPath!;
     } else {
-      const args = ['merge-graphs', ...members.map((item) => item.graphJsonPath!), '--out', graphPath];
-      const result = spawnSync('graphify', args, { encoding: 'utf8', shell: false, maxBuffer: 32 * 1024 * 1024 });
-      if (result.status !== 0 || !existsSync(graphPath)) {
+      const args = ['merge-graphs', ...members.map((item) => item.graphJsonPath!), '--out', temporary];
+      const result = await runProcess('graphify', args, { timeoutMs: 30 * 60_000, signal });
+      if (result.exitCode !== 0 || !existsSync(temporary)) {
         throw new Error(`Could not build the ${technology} aggregate graph. ${result.stderr?.trim() || result.stdout?.trim()}`);
       }
     }
-    const graph = JSON.parse(readFileSync(graphPath, 'utf8')) as any;
+    const graph = JSON.parse(readFileSync(members.length > 1 ? temporary : graphPath, 'utf8')) as any;
+    if (!Array.isArray(graph.nodes) || (!Array.isArray(graph.links) && !Array.isArray(graph.edges))) throw new Error('Invalid aggregate graph shape.');
     const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
     const edges = Array.isArray(graph.links) ? graph.links : Array.isArray(graph.edges) ? graph.edges : [];
     const ids = new Set(nodes.map((node: any) => String(node.id)));
@@ -129,6 +145,8 @@ export class TechnologyGraphService {
     const dangling = edges.filter((edge: any) =>
       !ids.has(endpoint(edge, 'source', 'from')) || !ids.has(endpoint(edge, 'target', 'to'))).length;
     if (dangling > 0) throw new Error(`${technology} aggregate graph has ${dangling} dangling edge(s).`);
+    if (signal?.aborted) throw new Error('Aggregate cancelled before publication.');
+    if (members.length > 1) renameSync(temporary, graphPath);
     const aggregate: TechnologyAggregateResult = {
       technology,
       graphPath,
@@ -136,12 +154,16 @@ export class TechnologyGraphService {
       nodeCount: nodes.length,
       edgeCount: edges.length,
     };
-    writeFileSync(resolve(outputRoot, 'aggregate.json'), JSON.stringify({
+    const metadataTemporary = `${metadataPath}.${randomUUID()}.tmp`;
+    writeFileSync(metadataTemporary, JSON.stringify({
       schemaVersion: '2.0',
       ...aggregate,
       graphPath: relative(outputRoot, graphPath).replace(/\\/g, '/'),
       generatedAt: new Date().toISOString(),
+      inputSignature,
+      graphDigest: createHash('sha256').update(readFileSync(graphPath)).digest('hex'),
     }, null, 2) + '\n', 'utf8');
+    renameSync(metadataTemporary, metadataPath);
     return aggregate;
   }
 

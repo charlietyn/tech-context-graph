@@ -1,109 +1,62 @@
-# Git pull before graph inspection
+# Updating repositories and graphs
 
-[Index](README.md) · [Graphify inspection](05-graphify-inspection.md) · [Advanced CLI](10-advanced-cli.md) · [Español](../es/15-git-pull-antes-inspeccion.md)
+[Index](README.md) ? [Inspection](05-graphify-inspection.md) ? [Espa?ol](../es/15-git-pull-antes-inspeccion.md)
 
-Tech Context Graph can optionally update a repository from its configured upstream branch immediately before updating its graph. This operation is opt-in: a normal graph update never contacts a Git remote.
+The **Pull latest code + update graphs** menu and CLI use the same coordinator:
 
-## Repository path versus source folder
-
-The catalog keeps two paths with different responsibilities:
-
-| Value | Purpose |
-|---|---|
-| `repository.path` | Original repository location detected or registered in the catalog. Git commands run here. |
-| `repository.sourcePath` | Source-code folder selected for AST extraction. Graphify runs here. |
-
-They are often identical. In a monorepo, however, the original path may be `D:\Repositories\platform` while the Graphify source folder is `D:\Repositories\platform\packages\api`. The pull updates the whole Git repository first; Graphify then inspects only the configured source folder.
-
-## Interactive workflow
-
-To update several repositories:
-
-1. Start `tcg` and choose **Pull latest code + update graphs** from the main menu.
-2. Choose **All accepted repositories** to select everything, or **Choose one or more with search** for manual selection.
-3. For manual selection, search for repositories and mark one or more with the Space key.
-4. Review the list and confirm the selection.
-5. Tech Context Graph runs Git and Graphify sequentially and displays a summary of both results.
-
-You can also update one repository from **Project details and source folders** → repository → **Pull latest code + update graph**.
-
-The existing **Update graph** action remains local-only and does not execute Git.
-
-## CLI workflow
-
-Pull and inspect one repository:
-
-```bash
-tcg repository:inspect api --pull --workspace "D:\TCG\Catalog"
+```powershell
+tcg repository:inspect all --pull --workspace "D:\TCG\Catalog"
+tcg repository:inspect api auth --pull --workspace "D:\TCG\Catalog"
 ```
 
-Pull and inspect several catalog entries:
+Without `--pull`, no Git remote is contacted. `--force` rebuilds; `--no-cluster` skips community analysis.
 
-```bash
-tcg repository:inspect api shared-auth billing --pull --workspace "D:\TCG\Catalog"
+## Execution
+
+- A log and workspace lock are created before Git begins.
+- Entries are grouped by actual Git root. Monorepo subfolders share one pull; linked worktrees sharing a Git directory are serialized.
+- Git uses `pull --ff-only --no-rebase`. Set `TCG_GIT_CONCURRENCY` to an integer from 1 to 8 (default 3).
+- Matching source fingerprint, extraction configuration, tool version and published graph digest return `UNCHANGED` without extraction.
+- AST-only Graphify extractions run sequentially. Incremental manifests and sidecars are copied to a new generation when the installed tool advertises incremental `extract --out` support; otherwise extraction is full.
+- Each technology aggregate is checked once at the end. Matching input and output digests skip `merge-graphs`. Retrying an aggregate does not require re-extracting current members.
+
+Git commands time out after 120 seconds; network errors are retried once. Extraction and aggregation time out after 30 minutes. Ctrl+C terminates children and settles cancellation. An independent repository failure does not stop the batch.
+
+## Local changes and Git ownership
+
+Catalog-selected roots receive command-scoped `-c safe.directory=<real-root>` trust. No global Git configuration or wildcard trust is written. Git errors are classified instead of falling back to a filesystem scan.
+
+Local artifacts are ignored through `git rev-parse --git-path info/exclude`, including linked worktrees. Tracked generated files remain tracked and their edits block pulling.
+
+Only the exact legacy TCG `.gitignore` footer (`# Tech Context Graph local state`, `.tcg/logs/`, `.tcg/*.tmp`) is migrated. The remaining content must match HEAD and the file must have no staged changes. TCG backs it up under `info/tcg-backups`, transfers rules to local excludes and restores only the verified `.gitignore` index entry using Git checkout conversion. User edits, mixed changes and ambiguous standalone ignore rules are preserved with a diagnostic. No destructive reset, clean, blanket stash, automatic merge or rebase is performed.
+
+## Publication and recovery
+
+Extractions write `<output>/.generations/<id>/graphify-out/`. After graph validation and a second source-fingerprint check, `tcg-current.json` atomically publishes the generation. It records run ID, source fingerprint, configuration and graph digest. SQLite stores the concrete graph path.
+
+Previous and failed generations are retained; there is no automatic retention policy yet. Legacy outputs without publication metadata require one extraction to establish provenance. Reconciliation recovers only a matching run ID, source fingerprint and content digest. An old valid graph never proves that a newer failed run succeeded.
+
+Batch results distinguish `UPDATED`, `UNCHANGED`, `BLOCKED`, `FAILED` and `CANCELLED`, with separate Git and graph outcomes. `PRESERVED` means a prior graph remains available. Aggregate failures are reported separately. Batch duration is wall time; per-entry timings can overlap due to concurrent and shared Git pulls.
+
+Logs start before Git at `.tcg/logs/update-<id>.log`, with a JSON report and separate inspection/verification logs. Diagnoses distinguish ownership, permissions, authentication, network, timeout, divergence, missing upstream and detached HEAD.
+
+## Startup and workspace ownership
+
+The first menu uses the stored catalog. Freshness is checked asynchronously with at most two workers and a 30-second session cache. Verification timestamps and errors are shown separately; until checked, graph state is explicitly the stored state. Graphify availability/version has a 60-second cache invalidated by PATH changes. Background checks never print into active prompts.
+
+Because SQLite is exported from an in-memory database, one controller owns the workspace at a time. A database lock lasts until session close, preventing stale processes from overwriting each other's state. Dead-owner locks are recovered; corrupt locks produce an actionable error.
+
+`.tcg/logs/startup.jsonl` records time to the first menu and elapsed Node process time.
+
+## Reproducible validation
+
+```powershell
+npm run build
+node scripts/verify-update.cjs
+npm test
+npm run lint:types
 ```
 
-The option can be combined with a full Graphify rebuild, although normal updates should remain the default:
+The smoke test uses real Graphify and temporary local repositories/remotes. It verifies monorepo deduplication, zero extractions/merges on an unchanged retry and incremental processing of one changed source. No production repositories or LLM API are involved.
 
-```bash
-tcg repository:inspect api --pull --force --workspace "D:\TCG\Catalog"
-```
-
-Without `--pull`, `repository:inspect` behaves exactly as before.
-
-## Safety checks and execution order
-
-For every distinct original repository path, Tech Context Graph performs these steps:
-
-1. Verify that the original folder exists and is a directory.
-2. Ask Git for the actual repository root.
-3. Require an attached branch; detached `HEAD` is rejected.
-4. Require a completely clean working tree, including untracked files.
-5. Require an upstream branch for the current branch.
-6. Record the current commit.
-7. Run `git pull --ff-only`.
-8. Record the resulting commit and report whether it changed.
-9. Start Graphify against `sourcePath`.
-
-`--ff-only` prevents an unattended merge commit. Tech Context Graph never runs `git reset`, `git stash`, `git checkout`, conflict resolution or destructive cleanup. If manual action is required, the graph update stops and the repository is left for the operator.
-
-Git runs without an interactive terminal prompt (`GIT_TERMINAL_PROMPT=0`). Existing credential managers and non-interactive authentication continue to work. Missing or expired credentials cause the pull to fail instead of leaving the CLI waiting for input.
-
-## Multiple catalog entries sharing a repository
-
-Several technology entries may use different `sourcePath` values inside the same original `repository.path`. In both the interactive batch action and one `repository:inspect ... --pull` invocation:
-
-- Git is pulled only once for each normalized original path;
-- the successful pull result is reused by later entries with that path;
-- Graphify still inspects every selected source folder separately;
-- a failed pull skips Graphify for every entry that shares the failed original path;
-- unrelated repository paths continue processing;
-- the command exits with status `1` if any selected entry failed.
-
-## Failure behavior
-
-| Failure | Result |
-|---|---|
-| Folder is not a Git repository | Graphify is not started. |
-| Working tree contains tracked or untracked changes | Pull and Graphify are both skipped. |
-| Branch has no upstream | Pull and Graphify are both skipped. |
-| Repository is in detached `HEAD` | Pull and Graphify are both skipped. |
-| Credentials or network fail | Pull fails and Graphify is not started. |
-| Local and remote histories diverge | `--ff-only` rejects the pull; no merge or graph update occurs. |
-| Repository is already current | The pull is reported as up to date and Graphify proceeds. |
-| Fast-forward succeeds | The before/after commits are shown and Graphify proceeds. |
-
-A pull failure does not create a new Graphify inspection record and does not delete an existing graph. The CLI displays a failed operation row so automation can detect the skipped update.
-
-## Troubleshooting
-
-Run these commands manually in the original repository folder to diagnose a blocked pull:
-
-```bash
-git status --short
-git branch --show-current
-git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}"
-git pull --ff-only
-```
-
-Resolve dirty files, upstream configuration, authentication, network access or branch divergence according to your repository policy. Then rerun the Tech Context Graph update.
+Git subprocesses launched by Graphify receive the same exception through process-local environment configuration. See [Git runtime configuration](https://git-scm.com/docs/git-config#Documentation/git-config.txt-GITCONFIGCOUNT).

@@ -1,50 +1,61 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { readFile, readdir, lstat } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
+import { gitRoot, requireGit, runGit } from './git-access';
+import { OperationError } from './process-runner';
 
 @Injectable()
 export class RepositoryFingerprintService {
-  calculate(repository: StoredRepository): string {
-    if (!existsSync(repository.sourcePath)) return 'missing';
-    const git = this.gitFingerprint(repository.sourcePath);
-    if (git) return git;
-    const summary = this.directorySummary(repository.sourcePath);
-    return `files:${createHash('sha256').update(summary).digest('hex')}`;
-  }
-
-  private gitFingerprint(path: string): string | undefined {
-    const head = spawnSync('git', ['-C', path, 'rev-parse', 'HEAD'], { encoding: 'utf8', shell: false });
-    if (head.status !== 0) return undefined;
-    const status = spawnSync('git', ['-C', path, 'status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8', shell: false });
-    const dirty = status.status === 0 && status.stdout.trim() ? createHash('sha1').update(status.stdout).digest('hex').slice(0, 12) : 'clean';
-    return `git:${head.stdout.trim()}:${dirty}`;
-  }
-
-  private directorySummary(root: string): string {
+  async calculate(repository: Pick<StoredRepository, 'sourcePath'>, signal?: AbortSignal): Promise<string> {
+    const path = resolve(repository.sourcePath);
+    if (!existsSync(path)) return 'missing';
+    const hash = createHash('sha256').update(path);
+    const root = gitRoot(path);
+    if (root) {
+      let directory = path;
+      while (true) {
+        for (const name of ['.gitignore', '.graphifyignore']) {
+          const ruleFile = resolve(directory, name);
+          if (existsSync(ruleFile)) hash.update(ruleFile).update(await readFile(ruleFile));
+        }
+        if (directory === root || dirname(directory) === directory) break;
+        directory = dirname(directory);
+      }
+      const head = requireGit(await runGit(path, ['rev-parse', 'HEAD'], { signal, timeoutMs: 15_000 }), 'Cannot read Git HEAD');
+      const status = await runGit(path, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.'], { signal, timeoutMs: 15_000 });
+      requireGit(status, 'Cannot read Git status');
+      hash.update(head).update(status.stdout);
+      const excludePath = requireGit(await runGit(path, ['rev-parse', '--git-path', 'info/exclude'], { signal, timeoutMs: 15_000 }), 'Cannot resolve Git excludes');
+      if (existsSync(resolve(path, excludePath))) hash.update(await readFile(resolve(path, excludePath)));
+      if (!status.stdout) return `git-v2:${hash.digest('hex')}`;
+      const changed = await runGit(path, ['ls-files', '-z', '--modified', '--others', '--exclude-standard', '--', '.'], { signal, timeoutMs: 15_000 });
+      requireGit(changed, 'Cannot enumerate changed files');
+      const staged = await runGit(path, ['diff', '--cached', '--binary', '--', '.'], { signal, timeoutMs: 15_000 });
+      requireGit(staged, 'Cannot read staged changes');
+      hash.update(staged.stdout);
+      for (const name of [...new Set(changed.stdout.split('\0').filter(Boolean))].sort()) {
+        if (signal?.aborted) throw new OperationError('CANCELLED', 'Fingerprint cancelled.');
+        hash.update(name);
+        try { if ((await lstat(resolve(path, name))).isFile()) hash.update(await readFile(resolve(path, name))); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; hash.update('deleted'); }
+      }
+      return `git-v2:${hash.digest('hex')}`;
+    }
     const excluded = new Set(['.git', 'node_modules', 'vendor', 'dist', 'build', 'coverage', '.next', '.nuxt', '.output', '.tcg', 'graphify-out', 'tech-graphify-out']);
-    const stack = [root];
-    const records: string[] = [];
-    let visited = 0;
-    while (stack.length && visited < 20_000) {
-      const current = stack.pop()!;
-      let entries;
-      try { entries = readdirSync(current, { withFileTypes: true }); } catch { continue; }
+    const visit = async (directory: string): Promise<void> => {
+      if (signal?.aborted) throw new OperationError('CANCELLED', 'Fingerprint cancelled.');
+      const entries = (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
       for (const entry of entries) {
         if (excluded.has(entry.name)) continue;
-        const full = resolve(current, entry.name);
-        if (entry.isDirectory()) stack.push(full);
-        else if (entry.isFile()) {
-          visited += 1;
-          try {
-            const stat = statSync(full);
-            records.push(`${full.slice(root.length)}:${stat.size}:${Math.trunc(stat.mtimeMs)}`);
-          } catch { /* ignore unreadable file */ }
-        }
+        const full = resolve(directory, entry.name);
+        if (entry.isDirectory()) await visit(full);
+        else if (entry.isFile()) hash.update(full.slice(path.length)).update(await readFile(full));
       }
-    }
-    return records.sort().join('\n');
+    };
+    await visit(path);
+    return `files-v2:${hash.digest('hex')}`;
   }
 }

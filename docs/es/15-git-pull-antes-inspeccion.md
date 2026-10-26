@@ -1,109 +1,66 @@
-# Git pull antes de actualizar el grafo
+# Actualizar repositorios y grafos
 
-[Índice](README.md) · [Inspección con Graphify](05-inspeccion-graphify.md) · [CLI avanzada](10-cli-avanzada.md) · [English](../en/15-git-pull-before-inspection.md)
+[?ndice](README.md) ? [Inspecci?n](05-inspeccion-graphify.md) ? [English](../en/15-git-pull-before-inspection.md)
 
-Tech Context Graph puede actualizar opcionalmente un repositorio desde su rama upstream inmediatamente antes de actualizar el grafo. Es una operación seleccionable: una actualización normal del grafo nunca contacta un remoto Git.
+El men? **Pull latest code + update graphs** y la CLI comparten el mismo coordinador. Selecciona todos los repositorios aceptados o un subconjunto:
 
-## Ruta del repositorio frente a carpeta de código fuente
-
-El catálogo conserva dos rutas con responsabilidades diferentes:
-
-| Valor | Propósito |
-|---|---|
-| `repository.path` | Ubicación original detectada o registrada. Los comandos Git se ejecutan aquí. |
-| `repository.sourcePath` | Carpeta de código fuente seleccionada para la extracción AST. Graphify se ejecuta aquí. |
-
-Normalmente coinciden. En un monorepo, sin embargo, la ruta original puede ser `D:\Repositorios\plataforma` y la carpeta inspeccionada `D:\Repositorios\plataforma\packages\api`. Primero se actualiza todo el repositorio Git y después Graphify inspecciona únicamente la carpeta fuente configurada.
-
-## Flujo interactivo
-
-Para actualizar varios repositorios:
-
-1. Inicia `tcg` y elige **Pull latest code + update graphs** en el menú principal.
-2. Elige **All accepted repositories** para seleccionar todos, o **Choose one or more with search** para elegirlos manualmente.
-3. En la selección manual, busca y marca uno o varios repositorios con la barra espaciadora.
-4. Revisa la lista y confirma la selección.
-5. Tech Context Graph ejecuta Git y Graphify secuencialmente y muestra un resumen de ambos resultados.
-
-También puedes actualizar un único repositorio desde **Project details and source folders** → repositorio → **Pull latest code + update graph**.
-
-La acción existente **Update graph** continúa siendo local y no ejecuta Git.
-
-## Flujo mediante CLI
-
-Actualizar e inspeccionar un repositorio:
-
-```bash
-tcg repository:inspect api --pull --workspace "D:\TCG\Catalogo"
+```powershell
+tcg repository:inspect all --pull --workspace "D:\TCG\Catalogo"
+tcg repository:inspect api auth --pull --workspace "D:\TCG\Catalogo"
 ```
 
-Actualizar e inspeccionar varias entradas:
+Sin `--pull`, no se contactan remotos Git. `--force` reconstruye el grafo; `--no-cluster` evita el an?lisis de comunidades.
 
-```bash
-tcg repository:inspect api shared-auth billing --pull --workspace "D:\TCG\Catalogo"
+## Ejecuci?n y rendimiento
+
+1. Se registra el lote y se adquiere el bloqueo del workspace.
+2. Se resuelve la ra?z Git real de cada entrada. Varias subcarpetas del mismo checkout comparten un solo pull. Los worktrees comparten un grupo de exclusi?n para evitar operaciones Git incompatibles.
+3. Git se actualiza mediante `pull --ff-only --no-rebase`. La concurrencia por defecto es 3; `TCG_GIT_CONCURRENCY` permite valores enteros de 1 a 8.
+4. Se verifica la fuente, configuraci?n de exclusiones, versi?n de Graphify y digest del grafo publicado. Una publicaci?n vigente devuelve `UNCHANGED` sin extracci?n.
+5. Graphify procesa secuencialmente las fuentes pendientes, en modo AST `--code-only`. La versi?n instalada debe anunciar soporte incremental con `--out` para reutilizar la generaci?n anterior; en otro caso se ejecuta una extracci?n completa.
+6. Se comprueba cada agregado una vez al finalizar. Si sus entradas y su contenido no cambiaron, tampoco se ejecuta `merge-graphs`. Repetir el lote permite reintentar un agregado fallido sin extraer de nuevo sus miembros vigentes.
+
+Git tiene un l?mite de 120 segundos por comando; solo los errores de red se reintentan una vez. Extracci?n y agregaci?n tienen un l?mite de 30 minutos. Ctrl+C cancela el lote, termina procesos hijos y conserva las publicaciones anteriores. Los repositorios independientes contin?an cuando uno queda bloqueado.
+
+## Cambios locales y propietarios
+
+TCG conserva cambios del usuario, incluidos archivos staged y unstaged. No ejecuta reset destructivo, limpieza, stash general, merge o rebase autom?tico.
+
+Para rutas elegidas del cat?logo, la confianza Git se limita a la ra?z real y al comando mediante `-c safe.directory=<ra?z>`. No modifica la configuraci?n global ni utiliza comodines. Los fallos de Git se clasifican; un fallo de permisos no se interpreta como una carpeta sin Git.
+
+Los artefactos locales se excluyen mediante la ruta que devuelve `git rev-parse --git-path info/exclude`, compatible con worktrees. Los archivos ya versionados siguen siendo versionados y sus cambios bloquean el pull.
+
+La migraci?n autom?tica de `.gitignore` es deliberadamente precisa: solo reconoce el pie exacto que escrib?an versiones anteriores de TCG (`# Tech Context Graph local state`, seguido de `.tcg/logs/` y `.tcg/*.tmp`). Comprueba que el resto coincida con HEAD y que no haya modificaciones staged de ese archivo, guarda una copia en `info/tcg-backups` y restaura ?nicamente `.gitignore` desde su ?ndice verificado, respetando la conversi?n de finales de l?nea de Git. Las reglas locales pasan a `info/exclude`.
+
+Una l?nea aislada como `graphify-out/`, un bloque modificado o cambios mezclados no prueban procedencia: se conservan y se explica el bloqueo. Revisarlos una vez es necesario; TCG no descarta cambios ambiguos para conseguir un resultado verde.
+
+## Publicaci?n, recuperaci?n y estados
+
+Cada extracci?n escribe en `<salida>/.generations/<id>/graphify-out/`. Despu?s de validar el grafo y comprobar que la fuente no cambi? durante la extracci?n, se publica `tcg-current.json` mediante rename. Este archivo identifica la generaci?n, ejecuci?n, huella, configuraci?n y digest. SQLite conserva la ruta concreta para consultas.
+
+Las generaciones anteriores y las extracciones fallidas se conservan para recuperaci?n; todav?a no existe una pol?tica autom?tica de retenci?n. Los grafos antiguos sin publicaci?n se regeneran una vez para incorporar esta procedencia. La reconciliaci?n solo recupera una ejecuci?n cuyo ID, huella y digest coincidan: encontrar un grafo viejo no convierte una ejecuci?n fallida en ?xito.
+
+El resumen distingue resultado del lote (`UPDATED`, `UNCHANGED`, `BLOCKED`, `FAILED`, `CANCELLED`), actualizaci?n Git y disponibilidad del grafo (`PRESERVED` cuando queda una publicaci?n anterior). Un fallo del agregado se muestra por separado. El tiempo total del lote es tiempo de reloj; las duraciones individuales pueden solaparse por la concurrencia y por los pulls compartidos.
+
+Los logs comienzan antes de Git: `.tcg/logs/update-<id>.log` y su informe JSON. Tambi?n hay logs por inspecci?n y verificaci?n. Los errores incluyen propietario, permisos, autenticaci?n, red, timeout, divergencia, upstream ausente y detached HEAD.
+
+## Arranque y bloqueo del workspace
+
+`tcg` muestra primero el cat?logo persistido, con la fecha de la ?ltima inspecci?n disponible en los detalles. La verificaci?n de frescura se hace en segundo plano, con dos tareas como m?ximo y una cach? de sesi?n de 30 segundos. Se muestra cu?ndo se verific? la fuente; hasta entonces el estado es el guardado. Los errores de verificaci?n aparecen en los detalles. La versi?n de Graphify se cachea durante 60 segundos y se invalida si cambia PATH.
+
+SQLite usa una copia en memoria, por lo que el workspace admite un controlador a la vez. El bloqueo de base de datos se mantiene hasta cerrar la sesi?n; evita que dos procesos sobrescriban el estado del otro. Un bloqueo cuyo propietario muri? se recupera autom?ticamente. Un bloqueo corrupto se informa y no se elimina a ciegas.
+
+`.tcg/logs/startup.jsonl` registra tiempo hasta el men? y tiempo desde el inicio de Node. El resumen se refresca al navegar; las comprobaciones en segundo plano no escriben sobre un prompt activo.
+
+## Verificaci?n reproducible
+
+```powershell
+npm run build
+node scripts/verify-update.cjs
+npm test
+npm run lint:types
 ```
 
-También puede combinarse con una reconstrucción completa, aunque las actualizaciones normales deben seguir siendo la opción habitual:
+La verificaci?n crea repositorios temporales y un remoto local, utiliza Graphify real y comprueba: un pull por monorepo, dos extracciones iniciales, cero extracciones/merges sin cambios y actualizaci?n incremental de una sola fuente. No contacta repositorios de producci?n ni necesita una API LLM.
 
-```bash
-tcg repository:inspect api --pull --force --workspace "D:\TCG\Catalogo"
-```
-
-Sin `--pull`, `repository:inspect` mantiene exactamente el comportamiento anterior.
-
-## Validaciones de seguridad y orden de ejecución
-
-Para cada ruta original distinta, Tech Context Graph realiza estos pasos:
-
-1. Comprueba que la carpeta original exista y sea un directorio.
-2. Consulta a Git cuál es la raíz real del repositorio.
-3. Exige una rama activa; rechaza un `HEAD` separado.
-4. Exige un árbol de trabajo completamente limpio, incluidos archivos sin seguimiento.
-5. Exige una rama upstream para la rama actual.
-6. Registra el commit actual.
-7. Ejecuta `git pull --ff-only`.
-8. Registra el commit resultante e informa si cambió.
-9. Inicia Graphify sobre `sourcePath`.
-
-`--ff-only` impide crear un merge commit no supervisado. Tech Context Graph nunca ejecuta `git reset`, `git stash`, `git checkout`, resolución de conflictos ni limpieza destructiva. Cuando hace falta una decisión manual, la actualización del grafo se detiene y el repositorio queda en manos del operador.
-
-Git se ejecuta sin un prompt interactivo (`GIT_TERMINAL_PROMPT=0`). Los gestores de credenciales y mecanismos no interactivos existentes continúan funcionando. Las credenciales ausentes o caducadas provocan un error inmediato en vez de dejar la CLI esperando una entrada.
-
-## Varias entradas que comparten un repositorio
-
-Varias tecnologías pueden usar diferentes valores de `sourcePath` dentro del mismo `repository.path`. Tanto en la acción visual por lotes como durante una ejecución de `repository:inspect ... --pull`:
-
-- Git se actualiza una sola vez por cada ruta original normalizada;
-- las entradas posteriores reutilizan el resultado del pull;
-- Graphify inspecciona cada carpeta fuente seleccionada por separado;
-- si el pull falla, Graphify se omite para todas las entradas que comparten esa ruta;
-- las rutas de repositorios no relacionadas continúan procesándose;
-- el comando finaliza con estado `1` si falla alguna entrada.
-
-## Comportamiento ante fallos
-
-| Fallo | Resultado |
-|---|---|
-| La carpeta no es un repositorio Git | Graphify no comienza. |
-| Existen cambios locales o archivos sin seguimiento | Se omiten tanto el pull como Graphify. |
-| La rama no tiene upstream | Se omiten tanto el pull como Graphify. |
-| El repositorio está en `HEAD` separado | Se omiten tanto el pull como Graphify. |
-| Fallan las credenciales o la red | Falla el pull y Graphify no comienza. |
-| Los historiales local y remoto divergen | `--ff-only` rechaza el pull; no se crea un merge ni se actualiza el grafo. |
-| El repositorio ya está actualizado | Se informa y Graphify continúa. |
-| El fast-forward termina correctamente | Se muestran ambos commits y Graphify continúa. |
-
-Un fallo del pull no crea un registro nuevo de inspección Graphify ni elimina un grafo existente. La CLI muestra una fila fallida para que la automatización pueda detectar que se omitió la actualización.
-
-## Resolución de problemas
-
-Ejecuta manualmente estos comandos en la carpeta original para diagnosticar el bloqueo:
-
-```bash
-git status --short
-git branch --show-current
-git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}"
-git pull --ff-only
-```
-
-Resuelve los archivos locales, upstream, autenticación, red o divergencia según las políticas del repositorio. Después vuelve a ejecutar la actualización de Tech Context Graph.
+Los procesos Git que inicia Graphify reciben la misma excepci?n mediante configuraci?n de entorno limitada al proceso. V?ase la [documentaci?n de Git sobre configuraci?n en tiempo de ejecuci?n](https://git-scm.com/docs/git-config#Documentation/git-config.txt-GITCONFIGCOUNT).
