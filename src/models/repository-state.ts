@@ -33,6 +33,7 @@ export interface StoredRepository {
   lastSeenAt: string;
   inspectionStatus: InspectionStatus;
   lastInspectionAt?: string;
+  lastInspectionId?: string;
   graphJsonPath?: string;
   nodeCount?: number;
   edgeCount?: number;

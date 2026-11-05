@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { RepositoryDiscoveryService } from '../services/repository-discovery.service';
 import { TechnologyGraphService } from '../services/technology-graph.service';
 import { repositoryGraphOutput } from '../services/graph-output-path';
+import { RepositoryArtifactKind } from '../models/repository-discovery';
 
 @Command({ name: 'project:add', arguments: '<name> <path>', description: 'Manually register a technology, application, or subsystem.' })
 export class ProjectAddCommand extends CommandRunner {
@@ -19,11 +20,15 @@ export class ProjectAddCommand extends CommandRunner {
   async run(params: string[], options: {
     workspace?: string; root?: string; type?: string; category?: string; technology?: string;
     ignoreProfile?: string; kind?: string; json?: boolean;
+    technologyVersion?: string; packageVersion?: string;
   }): Promise<void> {
     if (params.length < 2) throw new Error('Usage: tcg project:add <name> <path> --type technology --category backend --technology nestjs');
     const root = resolveWorkspacePath(options.workspace, options.root);
     const path = resolve(params[1]);
     if (!existsSync(path) || !statSync(path).isDirectory()) throw new Error(`Project path is not an existing directory: ${path}`);
+    if (options.kind && !['auto', 'core', 'library', 'application', 'unknown'].includes(options.kind)) {
+      throw new Error('Invalid --kind: expected auto, core, library, application, or unknown.');
+    }
     const automatic = options.kind === 'auto';
     const detected = automatic ? this.discovery.detectRepository(root, path) : undefined;
     if (automatic && !detected) {
@@ -34,6 +39,16 @@ export class ProjectAddCommand extends CommandRunner {
     const category = options.category || detected?.category || role;
     const technology = options.technology || detected?.technology || 'unknown';
     const ignoreProfile = options.ignoreProfile || detected?.ignore_profile || options.technology || 'common';
+    const artifactKind: RepositoryArtifactKind = automatic ? detected!.artifact_kind
+      : (options.kind as RepositoryArtifactKind | undefined) ?? detected?.artifact_kind ?? (role === 'library' ? 'library' : 'unknown');
+    const technologyVersion = options.technologyVersion ?? detected?.technology_version;
+    const packageVersion = options.packageVersion ?? detected?.package_version;
+    if (artifactKind === 'core' && (!technologyVersion || !/^\d+(?:\.\d+){0,2}$/.test(technologyVersion))) {
+      throw new Error('A versioned core requires --technology-version <major[.minor[.patch]]>.');
+    }
+    if (artifactKind === 'core' && technology === 'unknown') {
+      throw new Error('A versioned core requires --technology <catalog-id>.');
+    }
     const graphOutput = options.technology
       ? repositoryGraphOutput(technology, key)
       : detected?.graph_output ?? repositoryGraphOutput(technology, key);
@@ -54,11 +69,11 @@ export class ProjectAddCommand extends CommandRunner {
       source_path: path,
       graph_output: graphOutput,
       ignore_profile: ignoreProfile,
-      artifact_kind: detected?.artifact_kind ?? (role === 'library' ? 'library' : 'unknown'),
+      artifact_kind: artifactKind,
       package_ecosystem: detected?.package_ecosystem ?? 'unknown',
       package_name: detected?.package_name,
-      package_version: detected?.package_version,
-      technology_version: detected?.technology_version,
+      package_version: packageVersion,
+      technology_version: technologyVersion,
       technology_constraints: detected?.technology_constraints ?? [],
       enabled: true,
       registration: { source: 'manual', registered_at: new Date().toISOString() },
@@ -71,18 +86,18 @@ export class ProjectAddCommand extends CommandRunner {
       confidence: detected?.confidence,
       markers: detected?.markers,
       gitRepository: detected?.git_repository,
-      artifactKind: detected?.artifact_kind,
+      artifactKind: artifactKind,
       packageEcosystem: detected?.package_ecosystem,
       packageName: detected?.package_name,
-      packageVersion: detected?.package_version,
-      technologyVersion: detected?.technology_version,
+      packageVersion,
+      technologyVersion,
       technologyConstraints: detected?.technology_constraints,
       classificationEvidence: detected?.classification_evidence,
     });
     await this.technologyGraphs.organize(root, technology);
     const result = {
       key, path, role, category, technology, graphOutput,
-      artifactKind: detected?.artifact_kind ?? 'unknown',
+      artifactKind,
       packageName: detected?.package_name,
       packageVersion: detected?.package_version,
       technologyVersion: detected?.technology_version,
@@ -97,6 +112,8 @@ export class ProjectAddCommand extends CommandRunner {
   @Option({ flags: '--technology <technology>', description: 'Primary technology: nestjs, laravel, nuxt, flutter...' }) parseTechnology(value: string): string { return value; }
   @Option({ flags: '--ignore-profile <profile>', description: 'Profile from the ignore/ directory: nestjs, laravel, flutter...' }) parseIgnoreProfile(value: string): string { return value; }
   @Option({ flags: '--kind <kind>', description: 'auto, core, library, application, or unknown. auto reads the repository manifest.' }) parseKind(value: string): string { return value; }
+  @Option({ flags: '--technology-version <version>', description: 'Explicit framework core version for --kind core.' }) parseTechnologyVersion(value: string): string { return value; }
+  @Option({ flags: '--package-version <version>', description: 'Optional library package version.' }) parsePackageVersion(value: string): string { return value; }
   @Option({ flags: '--json', description: 'Structured registration result.' }) parseJson(): boolean { return true; }
 }
 

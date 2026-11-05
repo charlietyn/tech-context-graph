@@ -12,6 +12,7 @@ export interface ProcessOptions {
   env?: NodeJS.ProcessEnv;
   onLine?: (line: string) => void;
   input?: string;
+  maxOutputBytes?: number;
 }
 
 /** Resolves only after the child has closed, including cancellation and timeout. */
@@ -27,6 +28,7 @@ export async function runProcess(command: string, args: string[], options: Proce
     });
     let failure: Error | undefined;
     let stdout = ''; let stderr = '';
+    let capturedBytes = 0;
     const kill = () => {
       if (!child.pid) return;
       if (process.platform === 'win32') {
@@ -46,9 +48,10 @@ export async function runProcess(command: string, args: string[], options: Proce
     const decoders = [new StringDecoder('utf8'), new StringDecoder('utf8')];
     const pending = ['', ''];
     const consume = (index: number, value: string) => {
+      capturedBytes += Buffer.byteLength(value, 'utf8');
       if (index === 0) stdout += value; else stderr += value;
-      if (stdout.length + stderr.length > 64 * 1024 * 1024) {
-        failure ??= new OperationError('OUTPUT_LIMIT', `${command} output exceeded 64 MiB.`); kill();
+      if (capturedBytes > (options.maxOutputBytes ?? 64 * 1024 * 1024)) {
+        failure ??= new OperationError('OUTPUT_LIMIT', `${command} output exceeded the configured byte limit.`); kill();
       }
       pending[index] += value;
       const lines = pending[index].split(/\r\n|\n|\r/);

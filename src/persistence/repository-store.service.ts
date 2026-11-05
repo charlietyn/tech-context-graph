@@ -16,6 +16,7 @@ interface RepositoryRow {
   discovered_at: string; updated_at: string; last_seen_at: string;
   inspection_status?: string; last_inspection_at?: string; graph_json_path?: string;
   node_count?: number; edge_count?: number; error_message?: string; source_fingerprint?: string;
+  inspection_id?: string;
 }
 
 @Injectable()
@@ -115,6 +116,7 @@ export class RepositoryStoreService {
     const rows = await this.sqlite.all<RepositoryRow>(workspaceRoot, `
       SELECT r.*,
         i.status AS inspection_status,
+        i.id AS inspection_id,
         i.completed_at AS last_inspection_at,
         COALESCE(i.graph_json_path, valid.graph_json_path) AS graph_json_path,
         COALESCE(i.node_count, valid.node_count) AS node_count,
@@ -230,10 +232,22 @@ export class RepositoryStoreService {
 
   async recordQuery(workspaceRoot: string, values: {
     repositoryId: string; action: string; input: string; output?: string; status: string; durationMs: number;
+    maxRows?: number; maxAgeDays?: number;
   }): Promise<void> {
-    await this.sqlite.run(workspaceRoot, `INSERT INTO graph_queries(id,repository_id,action,input_text,output_text,status,created_at,duration_ms)
-      VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input, values.output ?? null,
-      values.status, new Date().toISOString(), values.durationMs]);
+    // An explicit opt-in is required in the caller. Bound retention and data per entry.
+    const maxRows = Math.min(10000, Math.max(1, Math.trunc(values.maxRows ?? 100)));
+    const maxAgeDays = Math.min(365, Math.max(1, Math.trunc(values.maxAgeDays ?? 7)));
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - maxAgeDays * 86400000).toISOString();
+    await this.sqlite.transaction(workspaceRoot, (db) => {
+      db.run(`INSERT INTO graph_queries(id,repository_id,action,input_text,output_text,status,created_at,duration_ms)
+        VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input.slice(0, 2048),
+        values.output?.slice(0, 32768) ?? null, values.status, now.toISOString(), values.durationMs]);
+      db.run('DELETE FROM graph_queries WHERE repository_id=? AND created_at < ?', [values.repositoryId, cutoff]);
+      db.run(`DELETE FROM graph_queries WHERE repository_id=? AND id NOT IN
+        (SELECT id FROM graph_queries WHERE repository_id=? ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
+      [values.repositoryId, values.repositoryId, maxRows]);
+    });
   }
 
   async disable(workspaceRoot: string, repositoryId: string): Promise<void> {
@@ -300,6 +314,25 @@ export class RepositoryStoreService {
 
   private upsertCandidate(db: any, candidate: RepositoryCandidate, now: string, newStatus: CatalogStatus, reopenIgnored = false): void {
     const item = candidateToStored(candidate, now);
+    // A scan cannot replace the classification/key chosen by a human reviewer.
+    const probe = db.prepare('SELECT repo_key,catalog_status FROM repositories WHERE path=?', [item.path]);
+    const current = probe.step() ? probe.getAsObject() as Record<string, unknown> : undefined;
+    probe.free();
+    if (current?.catalog_status === 'ACCEPTED' && !reopenIgnored) item.key = String(current.repo_key);
+    // A new path proposing an already-claimed key gets a deterministic suffix.
+    const preferredKey = item.key;
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const candidateKey = db.prepare('SELECT 1 FROM repositories WHERE repo_key=? AND path<>? LIMIT 1', [item.key, item.path]);
+      const taken = candidateKey.step(); candidateKey.free();
+      if (!taken) break;
+      if (reopenIgnored) throw new Error('Repository key belongs to another path: ' + preferredKey);
+      item.key = preferredKey + '-' + createHash('sha1').update(item.path + String(attempt)).digest('hex').slice(0, 8);
+      if (attempt === 15) throw new Error('Too many repository key collisions: ' + preferredKey);
+    }
+    if (item.key !== preferredKey && item.graphOutput.endsWith('/' + preferredKey)) {
+      item.graphOutput = item.graphOutput.slice(0, -preferredKey.length) + item.key;
+    }
+    const keepAccepted = reopenIgnored ? '0' : "repositories.catalog_status='ACCEPTED'";
     const promote = `excluded.catalog_status='ACCEPTED' AND ${reopenIgnored ? "repositories.catalog_status<>'ACCEPTED'" : "repositories.catalog_status='DETECTED'"}`;
     db.run(`INSERT INTO repositories(
       id,repo_key,name,path,source_path,relative_path,role,category,technology,technology_label,
@@ -308,16 +341,19 @@ export class RepositoryStoreService {
       git_repository,ignore_profile,graph_output,enabled,catalog_status,discovered_at,updated_at,last_seen_at
     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(path) DO UPDATE SET
-      repo_key=excluded.repo_key,name=excluded.name,relative_path=excluded.relative_path,role=excluded.role,
+      repo_key=CASE WHEN ${keepAccepted} THEN repositories.repo_key ELSE excluded.repo_key END,
+      name=CASE WHEN ${keepAccepted} THEN repositories.name ELSE excluded.name END,
+      relative_path=excluded.relative_path,
+      role=CASE WHEN ${keepAccepted} THEN repositories.role ELSE excluded.role END,
       source_path=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.source_path ELSE excluded.source_path END,
-      category=excluded.category,technology=excluded.technology,technology_label=excluded.technology_label,
-      artifact_kind=excluded.artifact_kind,package_ecosystem=excluded.package_ecosystem,
-      package_name=excluded.package_name,package_version=excluded.package_version,
-      technology_version=excluded.technology_version,
-      technology_constraints_json=excluded.technology_constraints_json,
-      classification_evidence_json=excluded.classification_evidence_json,
-      confidence=excluded.confidence,markers_json=excluded.markers_json,git_repository=excluded.git_repository,
-      ignore_profile=excluded.ignore_profile,
+      category=CASE WHEN ${keepAccepted} THEN repositories.category ELSE excluded.category END,technology=CASE WHEN ${keepAccepted} THEN repositories.technology ELSE excluded.technology END,technology_label=CASE WHEN ${keepAccepted} THEN repositories.technology_label ELSE excluded.technology_label END,
+      artifact_kind=CASE WHEN ${keepAccepted} THEN repositories.artifact_kind ELSE excluded.artifact_kind END,package_ecosystem=CASE WHEN ${keepAccepted} THEN repositories.package_ecosystem ELSE excluded.package_ecosystem END,
+      package_name=CASE WHEN ${keepAccepted} THEN repositories.package_name ELSE excluded.package_name END,package_version=CASE WHEN ${keepAccepted} THEN repositories.package_version ELSE excluded.package_version END,
+      technology_version=CASE WHEN ${keepAccepted} THEN repositories.technology_version ELSE excluded.technology_version END,
+      technology_constraints_json=CASE WHEN ${keepAccepted} THEN repositories.technology_constraints_json ELSE excluded.technology_constraints_json END,
+      classification_evidence_json=CASE WHEN ${keepAccepted} THEN repositories.classification_evidence_json ELSE excluded.classification_evidence_json END,
+      confidence=CASE WHEN ${keepAccepted} THEN repositories.confidence ELSE excluded.confidence END,markers_json=CASE WHEN ${keepAccepted} THEN repositories.markers_json ELSE excluded.markers_json END,git_repository=CASE WHEN ${keepAccepted} THEN repositories.git_repository ELSE excluded.git_repository END,
+      ignore_profile=CASE WHEN ${keepAccepted} THEN repositories.ignore_profile ELSE excluded.ignore_profile END,
       graph_output=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.graph_output ELSE excluded.graph_output END,
       enabled=CASE WHEN ${promote} THEN 1 ELSE repositories.enabled END,
       catalog_status=CASE WHEN ${promote} THEN 'ACCEPTED' ELSE repositories.catalog_status END,
@@ -372,6 +408,7 @@ export class RepositoryStoreService {
       lastSeenAt: row.last_seen_at,
       inspectionStatus: status,
       lastInspectionAt: row.last_inspection_at ?? undefined,
+      lastInspectionId: row.inspection_id ?? undefined,
       graphJsonPath,
       nodeCount: row.node_count ?? undefined,
       edgeCount: row.edge_count ?? undefined,

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "status": "MISSING",
+  "technology": "nestjs",
+  "requestedVersion": "10",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 1,
+  "error": {
+    "code": "VERSION_MISMATCH",
+    "retryable": false,
+    "message": "no version"
+  }
+}

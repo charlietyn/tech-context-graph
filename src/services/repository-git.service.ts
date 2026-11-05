@@ -40,14 +40,14 @@ export class RepositoryGitService {
     return resolve(requireGit(await runGit(path, ['rev-parse', '--show-toplevel'], { signal }), 'Cannot resolve Git root'));
   }
 
-  async pull(repository: Pick<StoredRepository, 'key' | 'path'>, options: { signal?: AbortSignal; timeoutMs?: number } = {}): Promise<RepositoryPullResult> {
+  async pull(repository: Pick<StoredRepository, 'key' | 'path'>, options: { signal?: AbortSignal; timeoutMs?: number; allowRewriteLocalCommits?: boolean } = {}): Promise<RepositoryPullResult> {
     const root = await this.root(repository.path, options.signal);
     const common = requireGit(await runGit(root, ['rev-parse', '--git-common-dir'], options), 'Cannot resolve Git directory');
     const release = await acquireLock(resolve(root, common, 'tcg-update.lock'));
     try { return await this.pullLocked(repository, options); } finally { await release(); }
   }
 
-  private async pullLocked(repository: Pick<StoredRepository, 'key' | 'path'>, options: { signal?: AbortSignal; timeoutMs?: number }): Promise<RepositoryPullResult> {
+  private async pullLocked(repository: Pick<StoredRepository, 'key' | 'path'>, options: { signal?: AbortSignal; timeoutMs?: number; allowRewriteLocalCommits?: boolean }): Promise<RepositoryPullResult> {
     const git = (path: string, args: string[]) => runGit(path, args, options);
     const startedAt = Date.now();
     const repositoryPath = resolve(repository.path);
@@ -104,6 +104,11 @@ export class RepositoryGitService {
       pullResult = await git(repositoryPath, ['pull', '--ff-only', '--no-rebase']);
     }
     if (pullResult.exitCode !== 0 && classifyGitError(this.detail(pullResult)) === 'DIVERGED' && !options.signal?.aborted) {
+      if (!options.allowRewriteLocalCommits) {
+        throw new OperationError('REWRITE_CONSENT_REQUIRED',
+          'Local commits diverge from upstream. Refusing rebase/reset without explicit consent. '
+          + 'Inspect commits and retry with --pull --allow-rewrite-local-commits if accepted.');
+      }
       pullResult = await this.reconcileDivergence(repository.key, repositoryRoot, branch, upstream, beforeCommit, notices, options);
     }
     if (pullResult.exitCode !== 0) {

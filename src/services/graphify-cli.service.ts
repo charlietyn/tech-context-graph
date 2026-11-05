@@ -12,6 +12,7 @@ import { RepositoryFingerprintService } from './repository-fingerprint.service';
 import { resolveGraphOutput } from './graph-output-path';
 import { TechnologyGraphService } from './technology-graph.service';
 import { GraphifyIgnoreService } from './graphify-ignore.service';
+import { WorkspaceConfigService } from './config.service';
 
 export interface GraphCommandResult {
   output: string;
@@ -118,6 +119,7 @@ export class GraphifyCliService {
     private readonly fingerprints: RepositoryFingerprintService,
     private readonly technologyGraphs?: TechnologyGraphService,
     private readonly ignores?: GraphifyIgnoreService,
+    private readonly config?: WorkspaceConfigService,
   ) {}
 
   private versionCache?: { path: string; checkedAt: number; promise: Promise<string> };
@@ -140,7 +142,7 @@ export class GraphifyCliService {
   }): Promise<GraphifyInspectionResult> {
     if (!existsSync(repository.sourcePath)) throw new Error(`Source folder missing: ${repository.sourcePath}`);
     const started = Date.now();
-    const version = await this.version();
+    const version = await this.version(true);
     if (version === 'unknown') throw new Error('Graphify is unavailable.');
     const ignores = this.ignores?.patterns(repository.ignoreProfile) ?? [];
     const configuration = createHash('sha256').update(JSON.stringify({
@@ -287,21 +289,41 @@ export class GraphifyCliService {
     const started = Date.now();
     try {
       const result = await this.captureGraphify(args);
-      await this.store.recordQuery(workspaceRoot, {
-        repositoryId: repository.id, action, input: action === 'path' ? `${input} -> ${second}` : input,
-        output: result.output, status: 'SUCCESS', durationMs: result.durationMs,
-      });
+      // Default policy is private: only an explicit opt-in stores TUI query contents.
+      if (this.config?.load(workspaceRoot).graphify?.query_log_disabled === false) {
+        await this.store.recordQuery(workspaceRoot, {
+          repositoryId: repository.id, action, input: action === 'path' ? input + ' -> ' + second : input,
+          output: result.output, status: 'SUCCESS', durationMs: result.durationMs,
+          maxRows: this.config.load(workspaceRoot).graphify.query_log_max_rows,
+          maxAgeDays: this.config.load(workspaceRoot).graphify.query_log_max_age_days,
+        });
+      }
       return result;
     } catch (error) {
-      await this.store.recordQuery(workspaceRoot, {
-        repositoryId: repository.id, action, input, status: 'FAILED', durationMs: Date.now() - started,
-        output: error instanceof Error ? error.message : String(error),
-      });
+      if (this.config?.load(workspaceRoot).graphify?.query_log_disabled === false) {
+        await this.store.recordQuery(workspaceRoot, {
+          repositoryId: repository.id, action, input, status: 'FAILED', durationMs: Date.now() - started,
+          output: error instanceof Error ? error.message : String(error),
+          maxRows: this.config.load(workspaceRoot).graphify.query_log_max_rows,
+          maxAgeDays: this.config.load(workspaceRoot).graphify.query_log_max_age_days,
+        });
+      }
       throw error;
     }
   }
 
-  async version(): Promise<string> {
+  /** Read-only contract consumer entrypoint. Does not persist prompt or Graphify output in SQLite. */
+  async queryPublished(
+    graphPath: string, action: 'query' | 'explain' | 'path', input: string, second?: string,
+  ): Promise<GraphCommandResult> {
+    const args = action === 'path'
+      ? ['path', input, second ?? '', '--graph', graphPath]
+      : [action, input, '--graph', graphPath];
+    return this.captureGraphify(args, 64 * 1024);
+  }
+
+  async version(fresh = false): Promise<string> {
+    if (fresh) this.invalidateVersion();
     const path = process.env.PATH ?? '';
     if (!this.versionCache || this.versionCache.path !== path || Date.now() - this.versionCache.checkedAt > 60_000) {
       this.helpCache = undefined;
@@ -383,8 +405,13 @@ export class GraphifyCliService {
     throw new Error(describeExitFailure(result.exitCode, result.stderr));
   }
 
-  private async captureGraphify(args: string[]): Promise<GraphCommandResult> {
-    const result = await runProcess('graphify', args, { timeoutMs: 120_000 });
+  private async captureGraphify(args: string[], maxOutputBytes = 64 * 1024 * 1024): Promise<GraphCommandResult> {
+    // Graphify upstream otherwise writes query history in the user's global cache,
+    // even when TCG's SQLite query log is disabled. Always keep ownership local to TCG.
+    const result = await runProcess('graphify', args, {
+      timeoutMs: 120_000, maxOutputBytes,
+      env: { ...process.env, GRAPHIFY_QUERY_LOG_DISABLE: '1' },
+    });
     if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
     return { output: result.stdout.trim(), exitCode: 0, durationMs: result.durationMs };
   }

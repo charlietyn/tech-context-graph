@@ -38,3 +38,11 @@ CI (`.github/workflows/quality.yml`) ejecuta los tres primeros en Ubuntu y Windo
 | `RepositoryRootService`, `DoctorCommand`, comandos `project:*` | Sin cobertura directa |
 | `GraphifyCliService.query` | Solo se comprueban los argumentos, en `graph-output-migration.spec.ts`, con `captureGraphify` simulado |
 | `ConsoleUiService` | Solo el flujo de pull en lote |
+
+## ARGEns v6 contract quality gates (rama agents-total-integration)
+
+Pruebas de resolución por SHA-256/fingerprint/pointer, selección exacta de core, `sourceRefs`, JSON Schema y fixtures STATUS. CI Ubuntu+Windows con Graphify **simulado exclusivamente en unit tests**; el E2E de Graphify real requiere provisioning independiente y comprobación de versiones. `test/technology-query.service.spec.ts`, `test/published-graph-resolver.spec.ts`, `test/technology-contract.schema.spec.ts` y `test/repository-catalog-invariants.spec.ts`. El test no demuestra integración en PCX/AG ni equivalencia con un modelo LLM.
+
+## Certificación real de Graphify (Linux)
+
+Workflow adicional `.github/workflows/graphify-real-integration.yml` fija `graphifyy==0.9.102` y corre `scripts/smoke-graphify-real.cjs` contra un repositorio TypeScript temporal no sensible: extracción real code-only, publicación SHA-256 e inspección, query `READY`, modificar fuente y `STALE`. Evidencia run #42034585042, commit 2106f4bad0a27972126d37ba6452d3204a598e3b, SUCCESS. No sustituye E2E Windows ni consumer AG/PCX.

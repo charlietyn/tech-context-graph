@@ -85,6 +85,7 @@ export class SqliteMigrationService {
         duration_ms INTEGER,
         FOREIGN KEY(repository_id) REFERENCES repositories(id) ON DELETE CASCADE
       );
+      CREATE INDEX IF NOT EXISTS graph_queries_repo_date_idx ON graph_queries(repository_id, created_at DESC);
     `);
     this.ensureColumn(db, 'repositories', 'catalog_status', "TEXT NOT NULL DEFAULT 'ACCEPTED'");
     this.ensureColumn(db, 'repositories', 'artifact_kind', "TEXT NOT NULL DEFAULT 'unknown'");

@@ -70,3 +70,7 @@ Un repositorio Git roto **da error**; nunca se degrada a escaneo de ficheros.
 `BLOCKED` corresponde a los códigos `LOCAL_CHANGES`, `OWNERSHIP`, `PERMISSION`, `DIVERGED`, `NO_UPSTREAM`, `DETACHED_HEAD`, `LOCKED`.
 
 `EMPTY_GRAPH` (solo documentación, sin símbolos) cuenta como `ok` con estado `SKIPPED`, pero la fila de `inspections` queda `FAILED` ([R-17](../technical-debt/risks.md)).
+
+## Lectura segura de publicación para contratos v1
+
+`PublishedGraphResolverService` exige `tcg-current.json` esquema 2, directorio de generación inmutable, SHA-256 real, topología válida, inspectionId y fingerprint coincidentes con última inspección SQLite READY, estado de fuente actual. La CLI valida de nuevo después de Graphify para evitar devolver una respuesta si cambió la fuente. Los grafos legacy sin puntero todavía pueden servir a la TUI pero **no** se publican como READY certificado en CONTRACT-002. No mezclar agregados de versiones.

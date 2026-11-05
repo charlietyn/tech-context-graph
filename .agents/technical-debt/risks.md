@@ -107,3 +107,7 @@ El contrato de salida se apoya en regex y detección por `--help`. Un cambio de 
 ### Código sin uso [L]
 
 `WorkspaceConfigService.configureStart`, `WorkspaceResolverService.requirePath`, opción `allowLastShortcut`, `describeRepositoryPull`, `invalidateVersion`, tabla `settings`, estados `REJECTED` y `MISSING` de catálogo.
+
+## Seguimiento de riesgos en `agents-total-integration` (no borrar evidencias originales)
+
+Mitigaciones incluidas en esta rama: rescan no sobrescribe clasificación `ACCEPTED`; claves nuevas colisionadas adquieren sufijo determinista; query CLI sin persistencia de prompts; TUI almacena queries solo por opt-in explícito; lectura versionada de Graphify verifica publicación, integridad, commit/fingerprint y SQLite; pruebas unit no requieren binario Graphify. Riesgos aún por certificar: E2E de Graphify real, integración de fixtures con consumidores PCX/AG, límites de ejecución/sandbox multi-tenant fuera del repositorio, limpieza configurable de generaciones/logs y políticas de consentimiento Git divergente. Cada mitigación se debe corroborar con GitHub Actions en SHA concreto.

@@ -143,3 +143,12 @@ Detalle en [architecture/overview.md](architecture/overview.md).
 - **Deuda técnica:** [risks](technical-debt/risks.md) · [opportunities](technical-debt/opportunities.md)
 
 **Omitidos a propósito:** `frontend/` y `backend/api` (no hay web ni HTTP), `add-endpoint` (equivale a `add-command`), bounded contexts y aggregates (el proyecto no usa DDD formal).
+
+## Lectura rápida de contrato ARGEns v6
+
+- [CLI versionada](cli/command-reference.md) y [Graph Query](features/graph-query.md)
+- [Frescura e integridad](features/freshness-and-reconcile.md) y [publicaciones](data/filesystem-artifacts.md)
+- [Límites con PCX/Apps Generator](integrations/integrations.md) y [arquitectura](architecture/boundaries.md)
+- [Tests de contratos](testing/strategy.md) y [deuda](technical-debt/risks.md)
+
+Estos documentos evolucionan el `.agents` existente; no se reintroducen carpetas duplicadas ni se almacena `.tcg` de workspace en Git.
