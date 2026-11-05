@@ -15,7 +15,7 @@ Without `--pull`, no Git remote is contacted. `--force` rebuilds; `--no-cluster`
 
 - A log and workspace lock are created before Git begins.
 - Entries are grouped by actual Git root. Monorepo subfolders share one pull; linked worktrees sharing a Git directory are serialized.
-- Git uses `pull --ff-only --no-rebase`. Set `TCG_GIT_CONCURRENCY` to an integer from 1 to 8 (default 3).
+- Git first uses `pull --ff-only --no-rebase`; a diverged branch is then [reconciled automatically](#diverged-branches). Set `TCG_GIT_CONCURRENCY` to an integer from 1 to 8 (default 3).
 - Matching source fingerprint, extraction configuration, tool version and published graph digest return `UNCHANGED` without extraction.
 - AST-only Graphify extractions run sequentially. Incremental manifests and sidecars are copied to a new generation when the installed tool advertises incremental `extract --out` support; otherwise extraction is full.
 - Each technology aggregate is checked once at the end. Matching input and output digests skip `merge-graphs`. Retrying an aggregate does not require re-extracting current members.
@@ -28,7 +28,27 @@ Catalog-selected roots receive command-scoped `-c safe.directory=<real-root>` tr
 
 Local artifacts are ignored through `git rev-parse --git-path info/exclude`, including linked worktrees. Tracked generated files remain tracked and their edits block pulling.
 
-Only the exact legacy TCG `.gitignore` footer (`# Tech Context Graph local state`, `.tcg/logs/`, `.tcg/*.tmp`) is migrated. The remaining content must match HEAD and the file must have no staged changes. TCG backs it up under `info/tcg-backups`, transfers rules to local excludes and restores only the verified `.gitignore` index entry using Git checkout conversion. User edits, mixed changes and ambiguous standalone ignore rules are preserved with a diagnostic. No destructive reset, clean, blanket stash, automatic merge or rebase is performed.
+Only the exact legacy TCG `.gitignore` footer (`# Tech Context Graph local state`, `.tcg/logs/`, `.tcg/*.tmp`) is migrated. The remaining content must match HEAD and the file must have no staged changes. TCG backs it up under `info/tcg-backups`, transfers rules to local excludes and restores only the verified `.gitignore` index entry using Git checkout conversion. User edits, mixed changes and ambiguous standalone ignore rules are preserved with a diagnostic. TCG never runs `git clean`, `git stash`, `git reset --hard` or an automatic merge.
+
+Tracked changes block the pull and are preserved. There is one exception: when deleted tracked files are the only change (for example after an interrupted checkout), they are restored with `git restore --worktree` and a notice is reported. Untracked files are not checked; Git itself refuses to overwrite them.
+
+## Diverged branches
+
+When a fast-forward is impossible because the branch has local commits, TCG reconciles it automatically. **This changes the history of your local branch.** It never pushes.
+
+1. TCG creates a backup ref at `refs/tcg/backups/<branch>/<timestamp>` pointing to the previous `HEAD`.
+2. If the net effect of the local commits only touches `.gitignore`, their added rules move to `.git/info/exclude` and `git reset --keep <upstream>` replaces those commits with the upstream.
+3. Otherwise, `git rebase --no-autostash <upstream>` replays the local commits, which get new hashes. If they were already pushed elsewhere, their copies there will no longer match.
+4. If the rebase conflicts, TCG runs `git rebase --abort`. The branch stays unchanged, Graphify is skipped for that repository and the result is `DIVERGED`, with instructions.
+
+The backup ref appears in the update notices. To inspect or recover the previous state:
+
+```bash
+git for-each-ref refs/tcg/backups
+git branch recovered <backup-ref>
+```
+
+Backup refs are not removed automatically.
 
 ## Publication and recovery
 
@@ -36,7 +56,7 @@ Extractions write `<output>/.generations/<id>/graphify-out/`. After graph valida
 
 Previous and failed generations are retained; there is no automatic retention policy yet. Legacy outputs without publication metadata require one extraction to establish provenance. Reconciliation recovers only a matching run ID, source fingerprint and content digest. An old valid graph never proves that a newer failed run succeeded.
 
-Batch results distinguish `UPDATED`, `UNCHANGED`, `BLOCKED`, `FAILED` and `CANCELLED`, with separate Git and graph outcomes. `PRESERVED` means a prior graph remains available. Aggregate failures are reported separately. Batch duration is wall time; per-entry timings can overlap due to concurrent and shared Git pulls.
+Batch results distinguish `UPDATED`, `UNCHANGED`, `SKIPPED` (no code symbols to graph), `BLOCKED`, `FAILED` and `CANCELLED`, with separate Git and graph outcomes. `PRESERVED` means a prior graph remains available. Aggregate failures are reported separately. Batch duration is wall time; per-entry timings can overlap due to concurrent and shared Git pulls.
 
 Logs start before Git at `.tcg/logs/update-<id>.log`, with a JSON report and separate inspection/verification logs. Diagnoses distinguish ownership, permissions, authentication, network, timeout, divergence, missing upstream and detached HEAD.
 

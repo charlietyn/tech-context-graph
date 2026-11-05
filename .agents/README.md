@@ -1,6 +1,6 @@
 # Project Agent Guide
 
-> **Verificado el 2026-11-05** sobre el working tree del mantenedor. Ese árbol incluía trabajo aún sin publicar en `main`: reconciliación de divergencias en `RepositoryGitService`, migración de exclusiones y `**/testdata/` en `ignore/common.graphifyignore`. Si esas piezas no están en tu checkout, esas secciones van por delante del código. Si el código contradice este documento, manda el código: corrige el documento.
+> **Verificado el 2026-11-05.** Si el código contradice este documento, manda el código: corrige el documento.
 
 ## System Summary
 

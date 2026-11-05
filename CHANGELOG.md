@@ -15,6 +15,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 - `RepositoryGitService` with live Git-root, branch, working-tree, upstream and commit validation.
 - Separate editable source-code folders through `repository:set-source`, preserving the original repository path used by Git.
 - Detailed English and Spanish documentation for source-folder mapping and pull-before-inspection workflows.
+- Automatic retry with `--max-workers 2` when a parallel Graphify extraction runs out of memory.
+- `SKIPPED` update status for repositories without code symbols, which no longer fail the batch.
+- `**/testdata/` in the common ignore profile, which re-extracts repositories on their next update.
 
 ### Fixed
 
@@ -25,8 +28,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Safety
 
-- Pulls use `git pull --ff-only` and never perform automatic merges, resets, stashes, checkouts or conflict resolution.
-- Dirty working trees, detached `HEAD`, missing upstream branches, Git authentication/network errors and divergent histories stop the graph update before Graphify starts.
+- Pulls try `git pull --ff-only` first and never perform automatic merges, stashes, cleans, hard resets or conflict resolution.
+- **Diverged branches change Git history automatically.** TCG first creates a backup ref under `refs/tcg/backups/`. Local commits that only edit `.gitignore` are replaced by the upstream with `git reset --keep`, keeping their rules in `.git/info/exclude`. Any other local commits are rebased with `git rebase --no-autostash`; a conflict aborts the rebase, leaves the branch unchanged and reports `DIVERGED`.
+- When deleted tracked files are the only local change, they are restored with `git restore --worktree` before pulling.
+- Other tracked changes, detached `HEAD`, missing upstream branches, Git authentication/network errors and unresolved divergence stop the graph update before Graphify starts. Untracked files are not checked; Git itself refuses to overwrite them.
 - Git runs without shell interpolation or interactive credential prompts.
 
 ## [4.0.0] - 2026-07-14

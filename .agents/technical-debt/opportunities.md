@@ -22,7 +22,7 @@ Separar evidencia, que se actualiza siempre, de identidad y clasificación, que 
 
 ### O-9. Alinear el contrato de seguridad de Git
 
-Decidir si la reconciliación automática es por defecto o bajo flag, y documentarlo. Resuelve [R-06](risks.md). **Debe resolverse antes de publicar el trabajo en curso.**
+La documentación ya describe la reconciliación automática. Falta corregir los textos de la TUI, `--help` y `LOCAL_CHANGES` ([R-06](risks.md)), y decidir si reescribir commits locales debe exigir un flag explícito.
 
 ### O-10. Honestidad de configuración
 

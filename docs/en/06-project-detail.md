@@ -14,7 +14,7 @@ Queries use the repository-specific `graph.json`; the unified graph is not used 
 | Explain | You need focused context for one symbol or concept |
 | Path | You suspect two concepts are connected and want the shortest known route |
 | Update | Source changed and the existing graph can be incrementally refreshed |
-| Pull latest code + update graph | Fetch a clean fast-forward from the configured upstream before updating the graph |
+| Pull latest code + update graph | Update from the configured upstream before updating the graph; a diverged branch is reconciled automatically with a backup ref |
 | Rebuild | You intentionally need a clean extraction |
 | Change source-code folder | Discovery mapped a repository container instead of the directory Graphify should inspect |
 

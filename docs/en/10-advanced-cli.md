@@ -16,6 +16,6 @@ Use `repository:review --accept-all` to accept every candidate awaiting review a
 
 Use `repository:set-source <key> <folder>` when discovery found the repository container but its actual source code lives in a different folder. The folder must exist. The registered repository path and key remain unchanged; later fingerprints and Graphify inspections use the edited source folder.
 
-Add `--pull` to execute `git pull --ff-only` in each distinct original repository folder before inspection. A failed pull skips Graphify for the affected entries and makes the command exit with status `1`. See [Git pull before graph inspection](15-git-pull-before-inspection.md) for detailed safety and multi-repository behavior.
+Add `--pull` to update each distinct original repository folder before inspection, starting with `git pull --ff-only`. A diverged branch can have its local commits rebased or replaced automatically, after a backup ref is created. A failed pull skips Graphify for the affected entries and makes the command exit with status `1`. See [Git pull before graph inspection](15-git-pull-before-inspection.md) for detailed safety and multi-repository behavior.
 
 Machine-readable commands return JSON when `--json` is available. Interactive confirmation is intentionally kept for destructive or expensive operations.

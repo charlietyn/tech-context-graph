@@ -15,7 +15,7 @@ Sin `--pull`, no se contactan remotos Git. `--force` reconstruye el grafo; `--no
 
 1. Se registra el lote y se adquiere el bloqueo del workspace.
 2. Se resuelve la ra?z Git real de cada entrada. Varias subcarpetas del mismo checkout comparten un solo pull. Los worktrees comparten un grupo de exclusi?n para evitar operaciones Git incompatibles.
-3. Git se actualiza mediante `pull --ff-only --no-rebase`. La concurrencia por defecto es 3; `TCG_GIT_CONCURRENCY` permite valores enteros de 1 a 8.
+3. Git se actualiza primero mediante `pull --ff-only --no-rebase`; una rama divergente se [reconcilia automáticamente](#ramas-divergentes). La concurrencia por defecto es 3; `TCG_GIT_CONCURRENCY` permite valores enteros de 1 a 8.
 4. Se verifica la fuente, configuraci?n de exclusiones, versi?n de Graphify y digest del grafo publicado. Una publicaci?n vigente devuelve `UNCHANGED` sin extracci?n.
 5. Graphify procesa secuencialmente las fuentes pendientes, en modo AST `--code-only`. La versi?n instalada debe anunciar soporte incremental con `--out` para reutilizar la generaci?n anterior; en otro caso se ejecuta una extracci?n completa.
 6. Se comprueba cada agregado una vez al finalizar. Si sus entradas y su contenido no cambiaron, tampoco se ejecuta `merge-graphs`. Repetir el lote permite reintentar un agregado fallido sin extraer de nuevo sus miembros vigentes.
@@ -24,7 +24,27 @@ Git tiene un l?mite de 120 segundos por comando; solo los errores de red se rein
 
 ## Cambios locales y propietarios
 
-TCG conserva cambios del usuario, incluidos archivos staged y unstaged. No ejecuta reset destructivo, limpieza, stash general, merge o rebase autom?tico.
+TCG nunca ejecuta `git clean`, `git stash`, `git reset --hard` ni un merge automático.
+
+Los cambios rastreados, staged o no, bloquean el pull y se conservan. Hay una excepción: si lo único que cambia son archivos rastreados borrados (por ejemplo, tras un checkout interrumpido), se restauran con `git restore --worktree` y se informa con un aviso. Los archivos sin seguimiento no se comprueban; el propio Git se niega a sobrescribirlos.
+
+## Ramas divergentes
+
+Si no es posible un fast-forward porque la rama tiene commits locales, TCG la reconcilia automáticamente. **Esto cambia el historial de tu rama local.** Nunca hace push.
+
+1. TCG crea una ref de respaldo en `refs/tcg/backups/<rama>/<marca-de-tiempo>` que apunta al `HEAD` anterior.
+2. Si el efecto neto de los commits locales solo toca `.gitignore`, sus reglas añadidas pasan a `.git/info/exclude` y `git reset --keep <upstream>` reemplaza esos commits por el upstream.
+3. En otro caso, `git rebase --no-autostash <upstream>` reaplica los commits locales, que obtienen hashes nuevos. Si ya se habían subido a otro sitio, sus copias allí dejarán de coincidir.
+4. Si el rebase tiene conflictos, TCG ejecuta `git rebase --abort`. La rama queda sin cambios, se omite Graphify para ese repositorio y el resultado es `DIVERGED`, con instrucciones.
+
+La ref de respaldo aparece en los avisos de la actualización. Para revisar o recuperar el estado anterior:
+
+```bash
+git for-each-ref refs/tcg/backups
+git branch recuperada <ref-de-respaldo>
+```
+
+Las refs de respaldo no se eliminan automáticamente.
 
 Para rutas elegidas del cat?logo, la confianza Git se limita a la ra?z real y al comando mediante `-c safe.directory=<ra?z>`. No modifica la configuraci?n global ni utiliza comodines. Los fallos de Git se clasifican; un fallo de permisos no se interpreta como una carpeta sin Git.
 
@@ -40,7 +60,7 @@ Cada extracci?n escribe en `<salida>/.generations/<id>/graphify-out/`. Despu?s d
 
 Las generaciones anteriores y las extracciones fallidas se conservan para recuperaci?n; todav?a no existe una pol?tica autom?tica de retenci?n. Los grafos antiguos sin publicaci?n se regeneran una vez para incorporar esta procedencia. La reconciliaci?n solo recupera una ejecuci?n cuyo ID, huella y digest coincidan: encontrar un grafo viejo no convierte una ejecuci?n fallida en ?xito.
 
-El resumen distingue resultado del lote (`UPDATED`, `UNCHANGED`, `BLOCKED`, `FAILED`, `CANCELLED`), actualizaci?n Git y disponibilidad del grafo (`PRESERVED` cuando queda una publicaci?n anterior). Un fallo del agregado se muestra por separado. El tiempo total del lote es tiempo de reloj; las duraciones individuales pueden solaparse por la concurrencia y por los pulls compartidos.
+El resumen distingue resultado del lote (`UPDATED`, `UNCHANGED`, `SKIPPED` cuando no hay símbolos de código, `BLOCKED`, `FAILED`, `CANCELLED`), actualizaci?n Git y disponibilidad del grafo (`PRESERVED` cuando queda una publicaci?n anterior). Un fallo del agregado se muestra por separado. El tiempo total del lote es tiempo de reloj; las duraciones individuales pueden solaparse por la concurrencia y por los pulls compartidos.
 
 Los logs comienzan antes de Git: `.tcg/logs/update-<id>.log` y su informe JSON. Tambi?n hay logs por inspecci?n y verificaci?n. Los errores incluyen propietario, permisos, autenticaci?n, red, timeout, divergencia, upstream ausente y detached HEAD.
 

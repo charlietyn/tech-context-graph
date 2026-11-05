@@ -14,7 +14,7 @@ Las consultas utilizan el `graph.json` específico del repositorio para evitar c
 | Explain | Necesitas contexto de un símbolo o concepto |
 | Path | Sospechas que dos conceptos están conectados |
 | Update | Cambió el código y puede actualizarse incrementalmente |
-| Pull latest code + update graph | Quieres aplicar un fast-forward limpio desde el upstream antes de actualizar el grafo |
+| Pull latest code + update graph | Quieres actualizar desde el upstream antes de actualizar el grafo; una rama divergente se reconcilia automáticamente con una ref de respaldo |
 | Rebuild | Necesitas intencionadamente una extracción limpia |
 | Cambiar carpeta del código fuente | El descubrimiento mapeó el contenedor del repositorio en vez de la carpeta que Graphify debe inspeccionar |
 

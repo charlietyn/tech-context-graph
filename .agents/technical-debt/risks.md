@@ -20,14 +20,15 @@
 - **Impacto:** escanear otra raíz con un proyecto llamado igual falla y descarta **todos** los candidatos de esa pasada, aunque el informe de `context-pack/` ya se escribió.
 - **Solución:** resolver contra las keys existentes de otra ruta antes de insertar.
 
-### R-06. Las promesas de seguridad contradicen el código sin commitear [L]
+### R-06. Los textos del programa no avisan de que `--pull` reescribe commits locales [L]
 
-`CHANGELOG.md` y `docs/en/15-git-pull-before-inspection.md` dicen que no hay resets, rebases ni restauraciones automáticas. El working tree del snapshot sí hace `git rebase`, `git reset --keep`, `git restore` de borrados y crea `refs/tcg/backups/*`.
+`RepositoryGitService` puede hacer `git rebase`, `git reset --keep` y `git restore`. `CHANGELOG.md` y `docs/` ya lo describen, pero el código sigue mostrando otra cosa:
 
-También la TUI anuncia `git pull --ff-only`, y el error `LOCAL_CHANGES` menciona ficheros untracked que ya no se comprueban.
+- La confirmación de la TUI, el menú de detalle (`console-ui.service.ts`) y la ayuda de `--pull` (`repository-control.commands.ts`) anuncian solo `git pull --ff-only`.
+- El error `LOCAL_CHANGES` menciona ficheros untracked, que ya no se comprueban.
 
-- **Impacto:** el usuario toma decisiones con información de seguridad incorrecta sobre sus repositorios.
-- **Solución:** decisión del mantenedor: alinear documentación antes de publicar, o limitar el comportamiento. Considerar exigir un flag explícito para reescribir commits locales.
+- **Impacto:** el usuario confirma una operación sin saber que puede cambiar el historial de su rama.
+- **Solución:** corregir esos textos. Considerar exigir un flag explícito para reescribir commits locales.
 
 ## Media
 
@@ -93,7 +94,7 @@ Una corrección en un sitio deja los demás mal.
 ### R-14. Textos incorrectos [L]
 
 - `tcg graph:code` no existe; aparece en `project:refresh` y `REPOSITORY_DISCOVERY.md`.
-- `?` literal en `console-ui.service.ts` (`runUpdates`, `showUpdateReport`) y `docs/en/15-git-pull-before-inspection.md`, probablemente separadores mal codificados.
+- `?` literal en `console-ui.service.ts` (`runUpdates`, `showUpdateReport`) y `docs/en/15-git-pull-before-inspection.md`, probablemente separadores mal codificados. En `docs/es/15-git-pull-antes-inspeccion.md` también sustituye a las tildes.
 - "Registrados" en español dentro del informe en inglés.
 - El resumen de onboarding muestra `\` en todas las plataformas.
 

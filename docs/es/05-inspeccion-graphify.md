@@ -6,7 +6,7 @@ Solo pueden seleccionarse repositorios aceptados. La interfaz informa si el graf
 
 Graphify se ejecuta secuencialmente para mantener predecible el consumo y los logs. Cada ejecución registra comando, versión, fingerprint, fechas, ruta del grafo, nodos, relaciones, errores y log.
 
-**Pull latest code + update graphs** permite buscar y seleccionar varios repositorios desde el menú principal; ejecuta `git pull --ff-only` en cada carpeta original antes de Graphify. Si un pull falla, ese grafo se omite y los demás repositorios continúan. La acción normal **Update graph** no contacta remotos Git. Consulta [Git pull antes de actualizar el grafo](15-git-pull-antes-inspeccion.md) para conocer todas las validaciones, reglas de seguridad y opciones de automatización.
+**Pull latest code + update graphs** permite buscar y seleccionar varios repositorios desde el menú principal; actualiza cada carpeta original antes de Graphify, empezando por `git pull --ff-only` y reconciliando automáticamente las ramas divergentes. Si un pull falla, ese grafo se omite y los demás repositorios continúan. La acción normal **Update graph** no contacta remotos Git. Consulta [Git pull antes de actualizar el grafo](15-git-pull-antes-inspeccion.md) para conocer todas las validaciones, reglas de seguridad y opciones de automatización.
 
 ## Qué produce la inspección
 

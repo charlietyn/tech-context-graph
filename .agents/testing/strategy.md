@@ -15,7 +15,7 @@ CI (`.github/workflows/quality.yml`) ejecuta los tres primeros en Ubuntu y Windo
 
 ## Línea base del snapshot
 
-18 suites, 98 tests (101 con el trabajo aún sin publicar), entre 47 y 89 s en Windows. `verify-update.cjs` no se ejecutó en este análisis porque requiere `npm run build`, que borra `dist/`.
+18 suites, 101 tests, entre 47 y 89 s en Windows. `verify-update.cjs` no se ejecutó en este análisis porque requiere `npm run build`, que borra `dist/`.
 
 ## Patrones en uso
 

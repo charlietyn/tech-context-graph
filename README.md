@@ -192,7 +192,7 @@ tcg repository:inspect api --pull \
 
 `repository:set-source` changes the directory Graphify inspects while preserving the repository's catalog identity. The interactive UI exposes the same action under **Project details and source folders**.
 
-`repository:inspect --pull` first runs `git pull --ff-only` in the original registered repository folder. Graphify starts only after a clean, successful fast-forward or an already-up-to-date result, and continues to inspect the configured source folder. Local changes, detached `HEAD`, missing upstream branches, authentication failures and divergent histories stop the graph update without modifying Git state automatically. See [Git pull before graph inspection](docs/en/15-git-pull-before-inspection.md) or [Git pull antes de actualizar el grafo](docs/es/15-git-pull-antes-inspeccion.md).
+`repository:inspect --pull` first runs `git pull --ff-only` in the original registered repository folder. Graphify then inspects the configured source folder. Tracked local changes, detached `HEAD`, missing upstream branches and authentication failures stop the graph update without modifying Git state. A diverged branch is reconciled automatically: TCG creates a backup ref and then replaces local commits that only edit `.gitignore`, or rebases any other local commits, aborting the rebase on conflict. Tracked files missing from disk are restored when they are the only local change. See [Git pull before graph inspection](docs/en/15-git-pull-before-inspection.md) or [Git pull antes de actualizar el grafo](docs/es/15-git-pull-antes-inspeccion.md).
 
 Use `tcg <command> --help` to inspect the exact options supported by a command.
 

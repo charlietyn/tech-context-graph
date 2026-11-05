@@ -35,7 +35,7 @@ Flujo y puntuación en [features/repository-discovery.md](../features/repository
 | `settings.exclude_directories` del catálogo | Directorios que **no se recorren al escanear** |
 | `ignore/*.graphifyignore` | Rutas que **Graphify no procesa** (`--exclude`) |
 
-El trabajo sin commitear añade `**/testdata/` a `common`, tras casos de agotamiento de memoria con corpus de tests. Cambiar estos ficheros invalida el hash de configuración de los repositorios afectados y los re-extrae.
+`common` incluye `**/testdata/` por casos de agotamiento de memoria con corpus de tests. Cambiar estos ficheros invalida el hash de configuración de los repositorios afectados y los re-extrae.
 
 ## Overrides
 
