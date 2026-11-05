@@ -1,3 +1,7 @@
+## Agent guide
+
+Read `.agents/README.md` before changing code: it maps the architecture, critical rules, workflows and known risks.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

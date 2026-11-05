@@ -1,0 +1,71 @@
+# Referencia de comandos
+
+Salida real de `tcg --help` contrastada con `src/commands/`. Sustituye a la "API" del proyecto: **el contrato público es el CLI y su `--json`**.
+
+Flags comunes: `-w, --workspace <path>`, `-r, --root <path>` (alias obsoleto), `--json`.
+
+## Workspace
+
+| Comando | Argumentos y flags | Lee y escribe |
+|---|---|---|
+| `tcg` / `tcg ui` | `-w`, `-r` | TUI |
+| `start` | `-w`, `-n/--project-name`, `--non-interactive` | Crea o elige |
+| `workspace:create` | `--path`, `--name`, `--non-interactive` | Crea o elige |
+| `workspace:list` | `--json` | Registro |
+| `workspace:use <path>` | — | Registro |
+| `workspace:remove <id-or-path>` | — | Registro; no borra ficheros |
+
+## Raíces
+
+| Comando | Flags | Almacén |
+|---|---|---|
+| `root:list` | `--json` | SQLite, sincroniza desde YAML |
+| `root:add <path>` | `--max-depth`, `--min-confidence`, `--role` | Ambos |
+| `root:scan <id-or-path>` | `--json` | SQLite + `context-pack` |
+| `root:enable <id>`, `root:disable <id>`, `root:remove <id>` | — | Ambos |
+
+## Catálogo y grafos
+
+| Comando | Flags | Notas |
+|---|---|---|
+| `repository:list` | `--inspected`, `--json` | Solo aceptados |
+| `repository:scan <folder>` | `--max-depth`, `--json` | Sin `--min-confidence` |
+| `repository:review` | `--accept <ids>`, `--accept-all`, `--ignore <ids>`, `--json` | Ver [catalog-review](../features/catalog-review.md) |
+| `repository:inspect <keys...\|all>` | `--force`, `--pull`, `--no-cluster` | Sin `--json`. `--no-cluster` altera el hash de configuración y provoca re-extracción |
+| `repository:reconcile` | `--json` | |
+| `repository:classify <key>` | `--technology`, `--category`, `--technology-label`, `--name`, `--confidence`, `--ignore-profile`, `--json` | Mueve la salida |
+| `repository:set-source <key> <folder>` | `--json` | Marca `STALE` |
+
+## Legacy `project:*`
+
+| Comando | Flags | Almacén |
+|---|---|---|
+| `project:add <name> <path>` | `-t/--type`, `--category`, `--technology`, `--ignore-profile`, `--kind`, `--json`, `-w`, `-r` | Ambos |
+| `project:list` | `--json`, `-w`, `-r` | YAML |
+| `project:discover <folder>` | `-r`, `--max-depth`, `--min-confidence`, `--role`, `--apply`, `--save-root`, `--json` | YAML opcional + SQLite. **Sin `-w`** |
+| `project:review` | `-r`, `--json` | Último informe |
+| `project:prepare <name>` | `-r`, `--write-ignore`, `--force` | Escribe en el repositorio |
+| `project:refresh` | `-r`, `--json` | Registra en YAML y acepta en SQLite **sin revisión**, salvo lo ya `IGNORED` |
+
+## Diagnóstico
+
+| Comando | Flags |
+|---|---|
+| `doctor` | `--json` |
+| `config:paths` | `--json` |
+| `config:show` | — |
+| `config:validate` | `--json` |
+
+## Inexistentes
+
+Sin comando CLI: consultar grafos (`query`, `explain`, `path`) y retirar un repositorio del catálogo. Solo están en la TUI.
+
+`tcg graph:code` aparece en mensajes pero **no existe** ([R-14](../technical-debt/risks.md)).
+
+## Probar comandos sin riesgo
+
+```powershell
+$env:TCG_CONFIG_HOME = "$env:TEMP\tcg-cfg"
+node dist/main.js workspace:create --path "$env:TEMP\tcg-ws" --name Prueba
+node dist/main.js repository:list --workspace "$env:TEMP\tcg-ws" --json
+```
