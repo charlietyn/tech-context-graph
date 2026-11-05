@@ -60,3 +60,7 @@ Solo como requisitos de Graphify. `doctor` comprueba `python` (`python3` fuera d
 | `sql.js` | WASM; requiere localizar el `.wasm` |
 | `@clack/prompts` | Solo ESM; import dinámico |
 | `nest-commander` | Sobre commander; ver trampa de `--no-*` |
+
+## ARGEns v6 TCG producer CONTRACT-002
+
+Entrada versionada (experimental en `agents-total-integration`): `tcg technology:query --json --technology nestjs --version 10 --question ...`. Contrato formal `docs/contracts/technology-context-result.v1.schema.json`; fixtures producer en `test/fixtures/contracts/technology-context/v1/`. PCX/AG consumen por proceso sin importar clases internas. No existe una API REST ni autorización multi-tenant en TCG. PCX valida contratos, autoriza workspace, interpreta `STALE|MISSING|FAILED` según política y no sustituye AC/UC por evidencia tecnológica. DeepSeek solo ejecutor bajo PCX, nunca dueño del grafo.
