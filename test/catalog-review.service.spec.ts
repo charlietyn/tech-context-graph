@@ -68,4 +68,90 @@ describe('CatalogReviewService', () => {
     sqlite.close();
     rmSync(root, { recursive: true, force: true });
   });
+
+  describe('explicit decisions and registration', () => {
+    let root: string;
+    let sqlite: SqliteDatabaseService;
+    let store: RepositoryStoreService;
+
+    function report(status: 'candidate' | 'registered' = 'candidate'): RepositoryDiscoveryReport {
+      return {
+        generated_at: new Date().toISOString(), workspace_root: root, scan_root: root, role: 'technology', max_depth: 1,
+        min_confidence: 60, visited_directories: 1, truncated: false, candidate_count: 1, registered_count: 0, skipped_count: 0,
+        candidates: [{
+          id: 'REPO-CAND-API', key: 'api', name: 'api', path: resolve(root, 'api'), relative_path: 'api', role: 'technology',
+          category: 'backend', technology: 'nestjs', technology_label: 'NestJS', artifact_kind: 'application',
+          package_ecosystem: 'npm', technology_constraints: [], classification_evidence: [], confidence: 90, markers: [],
+          git_repository: false, ignore_profile: 'nestjs', graph_output: './tech-graphify-out/technologies/nestjs/api',
+          status, warnings: [],
+        }],
+      };
+    }
+
+    beforeEach(() => {
+      root = mkdtempSync(resolve(tmpdir(), 'tcg-catalog-decisions-'));
+      mkdirSync(resolve(root, 'api'));
+      sqlite = new SqliteDatabaseService();
+      store = new RepositoryStoreService(sqlite);
+    });
+    afterEach(() => {
+      sqlite.close();
+      rmSync(root, { recursive: true, force: true });
+    });
+
+    it('organizes graphs when accepting explicit IDs and reports unknown ones as failures', async () => {
+      await store.saveDiscovery(root, report());
+      const organize = jest.fn().mockResolvedValue(0);
+      const service = new CatalogReviewService(store, { organize } as unknown as TechnologyGraphService);
+
+      const result = await service.apply(root, ['REPO-CAND-API', 'REPO-CAND-NOPE']);
+
+      expect(result).toMatchObject({ accepted: 1, failed: 1 });
+      expect(organize).toHaveBeenCalledWith(root, 'nestjs');
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'ACCEPTED', enabled: true });
+    });
+
+    it('revisits past decisions by ID, is idempotent and restores the prior status on failure', async () => {
+      await store.saveDiscovery(root, report());
+      const organize = jest.fn().mockResolvedValue(0);
+      const service = new CatalogReviewService(store, { organize } as unknown as TechnologyGraphService);
+
+      await service.apply(root, ['REPO-CAND-API']);
+      expect((await service.apply(root, [], ['REPO-CAND-API'])).ignored).toBe(1);
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'IGNORED', enabled: false });
+
+      organize.mockRejectedValueOnce(new Error('simulated relocation failure'));
+      expect((await service.apply(root, ['REPO-CAND-API'])).failed).toBe(1);
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'IGNORED', enabled: false });
+
+      expect((await service.apply(root, ['REPO-CAND-API'])).accepted).toBe(1);
+      organize.mockClear();
+      expect((await service.apply(root, ['REPO-CAND-API'])).accepted).toBe(1);
+      expect(organize).not.toHaveBeenCalled();
+    });
+
+    it('accepts --apply registrations, including existing candidates, but never revives an ignored one', async () => {
+      await store.saveDiscovery(root, report('registered'));
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'ACCEPTED', enabled: true });
+
+      await store.setCatalogStatus(root, ['REPO-CAND-API'], 'DETECTED');
+      await store.saveDiscovery(root, report());
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'DETECTED', enabled: false });
+      await store.saveDiscovery(root, report('registered'));
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'ACCEPTED', enabled: true });
+
+      await store.setCatalogStatus(root, ['REPO-CAND-API'], 'IGNORED');
+      await store.saveDiscovery(root, report('registered'));
+      expect(await store.getById(root, 'REPO-CAND-API')).toMatchObject({ catalogStatus: 'IGNORED', enabled: false });
+    });
+
+    it.each(['DETECTED', 'IGNORED'] as const)('accepts a %s path registered manually', async (status) => {
+      await store.saveDiscovery(root, report());
+      await store.setCatalogStatus(root, ['REPO-CAND-API'], status);
+
+      await store.upsertManual(root, { key: 'api', path: resolve(root, 'api'), role: 'technology', category: 'backend', technology: 'nestjs' });
+
+      expect(await store.getByKey(root, 'api')).toMatchObject({ catalogStatus: 'ACCEPTED', enabled: true });
+    });
+  });
 });

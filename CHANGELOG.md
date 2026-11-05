@@ -16,6 +16,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Separate editable source-code folders through `repository:set-source`, preserving the original repository path used by Git.
 - Detailed English and Spanish documentation for source-folder mapping and pull-before-inspection workflows.
 
+### Fixed
+
+- `repository:inspect --no-cluster` now reaches the coordinator; it was silently ignored.
+- `project:discover --apply`, `project:refresh` and `project:add` now accept the repository in the SQLite catalog instead of leaving it `DETECTED` and impossible to inspect. Scans never revive a repository you ignored; `project:add` on that explicit path does.
+- `repository:review --accept/--ignore` now organizes graph folders, restores the prior status on failure, and reports unknown IDs with exit status `1` instead of counting them as accepted.
+- `npm run dev` compiles with `tsc` and runs `dist/main.js`; under `tsx` dependency injection failed because decorator metadata was not emitted.
+
 ### Safety
 
 - Pulls use `git pull --ff-only` and never perform automatic merges, resets, stashes, checkouts or conflict resolution.

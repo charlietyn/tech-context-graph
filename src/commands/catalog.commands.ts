@@ -46,14 +46,20 @@ export class RepositoryReviewCommand extends CommandRunner {
 
     const acceptedIds = options.accept ? options.accept.split(',').map((item) => item.trim()).filter(Boolean) : [];
     const ignoredIds = options.ignore ? options.ignore.split(',').map((item) => item.trim()).filter(Boolean) : [];
-    if (acceptedIds.length) await this.review.setStatus(workspace, acceptedIds, 'ACCEPTED');
-    if (ignoredIds.length) await this.review.setStatus(workspace, ignoredIds, 'IGNORED');
+    const result = acceptedIds.length || ignoredIds.length ? await this.review.apply(workspace, acceptedIds, ignoredIds) : undefined;
     const candidates = await this.review.listDetected(workspace);
+    if (result?.failed) process.exitCode = 1;
     if (options.json) {
-      console.log(JSON.stringify({ accepted: acceptedIds.length, ignored: ignoredIds.length, remaining: candidates }, null, 2));
+      console.log(JSON.stringify({
+        accepted: result?.accepted ?? 0, ignored: result?.ignored ?? 0, failed: result?.failed ?? 0,
+        items: result?.items ?? [], remaining: candidates,
+      }, null, 2));
     } else {
-      if (acceptedIds.length) console.log(`Accepted ${acceptedIds.length} candidate(s).`);
-      if (ignoredIds.length) console.log(`Ignored ${ignoredIds.length} candidate(s).`);
+      if (result?.accepted) console.log(`Accepted ${result.accepted} candidate(s).`);
+      if (result?.ignored) console.log(`Ignored ${result.ignored} candidate(s).`);
+      for (const item of result?.items.filter((entry) => entry.status === 'failed') ?? []) {
+        console.error(`FAILED ${item.key}: ${item.error}`);
+      }
       if (!candidates.length) console.log('No detected candidates are awaiting review.');
       for (const item of candidates) console.log(`${item.id}\t${item.key}\t${item.technologyLabel}\t${item.confidence}%\t${item.path}`);
     }

@@ -31,7 +31,10 @@ export class RepositoryStoreService {
         ON CONFLICT(path) DO UPDATE SET enabled=1,max_depth=excluded.max_depth,min_confidence=excluded.min_confidence,
           role=excluded.role,last_scanned_at=excluded.last_scanned_at,updated_at=excluded.updated_at`,
       [rootId, report.scan_root, 1, report.max_depth, report.min_confidence, report.role, now, now, now]);
-      for (const candidate of report.candidates) this.upsertCandidate(db, candidate, now, 'DETECTED');
+      // Only an explicit --apply registers a candidate; it never revives one the user ignored.
+      for (const candidate of report.candidates) {
+        this.upsertCandidate(db, candidate, now, candidate.status === 'registered' ? 'ACCEPTED' : 'DETECTED');
+      }
     });
   }
 
@@ -83,7 +86,8 @@ export class RepositoryStoreService {
       warnings: [],
     };
     candidate.path = resolve(values.path);
-    await this.sqlite.transaction(workspaceRoot, (db) => this.upsertCandidate(db, candidate, now, 'ACCEPTED'));
+    // Naming one explicit path is a human decision, so it also reverses an earlier ignore.
+    await this.sqlite.transaction(workspaceRoot, (db) => this.upsertCandidate(db, candidate, now, 'ACCEPTED', true));
     if (values.sourcePath && resolve(values.sourcePath) !== candidate.path) {
       await this.updateSourcePath(workspaceRoot, candidate.id, resolve(values.sourcePath));
     }
@@ -294,8 +298,9 @@ export class RepositoryStoreService {
     });
   }
 
-  private upsertCandidate(db: any, candidate: RepositoryCandidate, now: string, newStatus: CatalogStatus): void {
+  private upsertCandidate(db: any, candidate: RepositoryCandidate, now: string, newStatus: CatalogStatus, reopenIgnored = false): void {
     const item = candidateToStored(candidate, now);
+    const promote = `excluded.catalog_status='ACCEPTED' AND ${reopenIgnored ? "repositories.catalog_status<>'ACCEPTED'" : "repositories.catalog_status='DETECTED'"}`;
     db.run(`INSERT INTO repositories(
       id,repo_key,name,path,source_path,relative_path,role,category,technology,technology_label,
       artifact_kind,package_ecosystem,package_name,package_version,technology_version,
@@ -314,6 +319,8 @@ export class RepositoryStoreService {
       confidence=excluded.confidence,markers_json=excluded.markers_json,git_repository=excluded.git_repository,
       ignore_profile=excluded.ignore_profile,
       graph_output=CASE WHEN repositories.catalog_status='ACCEPTED' THEN repositories.graph_output ELSE excluded.graph_output END,
+      enabled=CASE WHEN ${promote} THEN 1 ELSE repositories.enabled END,
+      catalog_status=CASE WHEN ${promote} THEN 'ACCEPTED' ELSE repositories.catalog_status END,
       updated_at=excluded.updated_at,
       last_seen_at=excluded.last_seen_at`, [
       item.id, item.key, item.name, item.path, item.sourcePath, item.relativePath, item.role, item.category, item.technology,

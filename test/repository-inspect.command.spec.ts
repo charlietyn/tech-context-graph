@@ -1,5 +1,10 @@
+import 'reflect-metadata';
+import { Module } from '@nestjs/common';
+import { CommandFactory } from 'nest-commander';
 import { StoredRepository } from '../src/models/repository-state';
 import { RepositoryInspectCommand } from '../src/commands/repository-control.commands';
+import { RepositoryControlService } from '../src/services/repository-control.service';
+import { RepositoryUpdateService } from '../src/services/repository-update.service';
 import { RepositoryUiPresenterService } from '../src/ui/repository-ui-presenter.service';
 import { RepositoryPullResult } from '../src/services/repository-git.service';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -86,5 +91,34 @@ describe('RepositoryInspectCommand --pull', () => {
     await command.run(['all'], { workspace, pull: true });
     expect(updates.run).toHaveBeenCalledWith(workspace, items, expect.objectContaining({ pull: true }));
     expect(process.exitCode).toBeUndefined();
+  });
+
+  describe('flags parsed by the real commander', () => {
+    const originalArgv = process.argv;
+    afterEach(() => { process.argv = originalArgv; });
+
+    async function parsedOptions(...flags: string[]): Promise<Record<string, unknown>> {
+      const updates = { run: jest.fn().mockResolvedValue({ outcomes: [], aggregates: [], durationMs: 1, logPath: 'test.log' }) };
+      @Module({
+        providers: [
+          RepositoryInspectCommand,
+          RepositoryUiPresenterService,
+          { provide: RepositoryControlService, useValue: { get: jest.fn().mockResolvedValue(repository('core')) } },
+          { provide: RepositoryUpdateService, useValue: updates },
+        ],
+      })
+      class InspectTestModule {}
+      process.argv = ['node', 'tcg', 'repository:inspect', 'core', '--workspace', workspace, ...flags];
+      await CommandFactory.run(InspectTestModule, { logger: false });
+      return updates.run.mock.calls[0][2];
+    }
+
+    it('forwards --no-cluster to the coordinator', async () => {
+      expect(await parsedOptions('--no-cluster')).toMatchObject({ noCluster: true });
+    });
+
+    it('leaves noCluster undefined without the flag so existing configuration hashes stay valid', async () => {
+      expect((await parsedOptions()).noCluster).toBeUndefined();
+    });
   });
 });

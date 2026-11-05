@@ -7,7 +7,8 @@ import { RepositoryUpdateService } from '../services/repository-update.service';
 
 interface Options {
   workspace?: string; root?: string; json?: boolean; inspected?: boolean; maxDepth?: number; force?: boolean;
-  noCluster?: boolean; pull?: boolean;
+  /** Commander exposes the negated flag --no-cluster as cluster=false. */
+  cluster?: boolean; pull?: boolean;
   name?: string; category?: string; technology?: string; technologyLabel?: string; confidence?: number; ignoreProfile?: string;
 }
 
@@ -56,7 +57,8 @@ export class RepositoryInspectCommand extends CommandRunner {
       ? await this.repositories.list(workspace)
       : await Promise.all(params.map((key) => this.repositories.get(workspace, key)));
     const report = await this.updates.run(workspace, selected, {
-      pull: options.pull, force: options.force, noCluster: options.noCluster,
+      // Stay undefined without the flag: false would change the extraction configuration hash and re-extract every graph.
+      pull: options.pull, force: options.force, noCluster: options.cluster === false ? true : undefined,
       onProgress: (message) => console.log(message),
     });
     console.log(this.presenter.inspectionTable(report.outcomes));
@@ -73,7 +75,7 @@ export class RepositoryInspectCommand extends CommandRunner {
   @Option({ flags: '-r, --root <path>' }) parseRoot(value: string): string { return value; }
   @Option({ flags: '--force' }) parseForce(): boolean { return true; }
   @Option({ flags: '--pull', description: 'Run git pull --ff-only in the original repository folder before Graphify.' }) parsePull(): boolean { return true; }
-  @Option({ flags: '--no-cluster', description: 'Skip community clustering and generate only the structural graph.' }) parseNoCluster(): boolean { return true; }
+  @Option({ flags: '--no-cluster', description: 'Skip community clustering and generate only the structural graph.' }) parseCluster(): boolean { return false; }
 
 }
 

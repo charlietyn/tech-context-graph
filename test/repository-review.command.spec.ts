@@ -57,4 +57,35 @@ describe('RepositoryReviewCommand --accept-all', () => {
     expect(review.listDetected).not.toHaveBeenCalled();
     expect(review.apply).not.toHaveBeenCalled();
   });
+
+  it('applies explicit IDs through the review service and exits 1 when one fails', async () => {
+    const review = {
+      listDetected: jest.fn().mockResolvedValue([]),
+      apply: jest.fn().mockResolvedValue({
+        accepted: 1, ignored: 0, failed: 1,
+        items: [
+          { id: 'candidate-api', key: 'api', status: 'accepted' },
+          { id: 'candidate-nope', key: 'candidate-nope', status: 'failed', error: 'Candidate no longer exists.' },
+        ],
+      }),
+    };
+    const command = new RepositoryReviewCommand(review as never);
+
+    await command.run([], { workspace, accept: 'candidate-api, candidate-nope', ignore: 'candidate-old' });
+
+    expect(review.apply).toHaveBeenCalledWith(workspace, ['candidate-api', 'candidate-nope'], ['candidate-old']);
+    expect(console.log).toHaveBeenCalledWith('Accepted 1 candidate(s).');
+    expect(console.error).toHaveBeenCalledWith('FAILED candidate-nope: Candidate no longer exists.');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('only lists candidates when no decision is requested', async () => {
+    const review = { listDetected: jest.fn().mockResolvedValue([]), apply: jest.fn() };
+    const command = new RepositoryReviewCommand(review as never);
+
+    await command.run([], { workspace });
+
+    expect(review.apply).not.toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
 });

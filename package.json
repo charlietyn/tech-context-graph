@@ -30,7 +30,7 @@
     "prebuild": "node scripts/clean-dist.cjs",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
-    "dev": "tsx src/main.ts",
+    "dev": "tsc -p tsconfig.build.json && node dist/main.js",
     "test": "jest --runInBand",
     "test:all": "npm test && npm run build",
     "link": "npm run build && npm link",
@@ -58,7 +58,6 @@
     "@types/sql.js": "^1.4.9",
     "jest": "^30.0.5",
     "ts-jest": "^29.4.5",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
   "engines": {

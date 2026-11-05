@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CatalogStatus, StoredRepository } from '../models/repository-state';
+import { StoredRepository } from '../models/repository-state';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
 import { TechnologyGraphService } from './technology-graph.service';
 
@@ -42,22 +42,26 @@ export class CatalogReviewService {
     ];
     const items: CatalogReviewItemResult[] = [];
     for (const request of requested) {
-      const candidate = byId.get(request.id);
+      // Explicit IDs may also revisit a past decision, such as accepting an ignored repository again.
+      const candidate = byId.get(request.id) ?? await this.store.getById(workspaceRoot, request.id);
       let result: CatalogReviewItemResult;
       if (!candidate) {
-        result = { id: request.id, key: request.id, status: 'failed', error: 'Candidate no longer exists or was already reviewed.' };
+        result = { id: request.id, key: request.id, status: 'failed', error: 'Candidate no longer exists.' };
       } else {
+        const reviewed = request.status === 'ACCEPTED' ? 'accepted' as const : 'ignored' as const;
         try {
-          await this.store.setCatalogStatus(workspaceRoot, [request.id], request.status);
-          if (request.status === 'ACCEPTED') {
-            try {
-              await this.technologyGraphs?.organize(workspaceRoot, candidate.technology);
-            } catch (error) {
-              await this.store.setCatalogStatus(workspaceRoot, [request.id], 'DETECTED');
-              throw error;
+          if (candidate.catalogStatus !== request.status) {
+            await this.store.setCatalogStatus(workspaceRoot, [request.id], request.status);
+            if (request.status === 'ACCEPTED') {
+              try {
+                await this.technologyGraphs?.organize(workspaceRoot, candidate.technology);
+              } catch (error) {
+                await this.store.setCatalogStatus(workspaceRoot, [request.id], candidate.catalogStatus);
+                throw error;
+              }
             }
           }
-          result = { id: request.id, key: candidate.key, status: request.status === 'ACCEPTED' ? 'accepted' : 'ignored' };
+          result = { id: request.id, key: candidate.key, status: reviewed };
         } catch (error) {
           result = { id: request.id, key: candidate.key, status: 'failed', error: error instanceof Error ? error.message : String(error) };
         }
@@ -71,9 +75,5 @@ export class CatalogReviewService {
       ignored: items.filter((item) => item.status === 'ignored').length,
       failed: items.filter((item) => item.status === 'failed').length,
     };
-  }
-
-  setStatus(workspaceRoot: string, ids: string[], status: CatalogStatus): Promise<void> {
-    return this.store.setCatalogStatus(workspaceRoot, ids, status);
   }
 }
