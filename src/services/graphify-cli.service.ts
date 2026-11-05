@@ -294,6 +294,8 @@ export class GraphifyCliService {
         await this.store.recordQuery(workspaceRoot, {
           repositoryId: repository.id, action, input: action === 'path' ? input + ' -> ' + second : input,
           output: result.output, status: 'SUCCESS', durationMs: result.durationMs,
+          maxRows: this.config.load(workspaceRoot).graphify.query_log_max_rows,
+          maxAgeDays: this.config.load(workspaceRoot).graphify.query_log_max_age_days,
         });
       }
       return result;
@@ -302,6 +304,8 @@ export class GraphifyCliService {
         await this.store.recordQuery(workspaceRoot, {
           repositoryId: repository.id, action, input, status: 'FAILED', durationMs: Date.now() - started,
           output: error instanceof Error ? error.message : String(error),
+          maxRows: this.config.load(workspaceRoot).graphify.query_log_max_rows,
+          maxAgeDays: this.config.load(workspaceRoot).graphify.query_log_max_age_days,
         });
       }
       throw error;

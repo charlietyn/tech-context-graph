@@ -232,10 +232,22 @@ export class RepositoryStoreService {
 
   async recordQuery(workspaceRoot: string, values: {
     repositoryId: string; action: string; input: string; output?: string; status: string; durationMs: number;
+    maxRows?: number; maxAgeDays?: number;
   }): Promise<void> {
-    await this.sqlite.run(workspaceRoot, `INSERT INTO graph_queries(id,repository_id,action,input_text,output_text,status,created_at,duration_ms)
-      VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input.slice(0, 2048), values.output?.slice(0, 32768) ?? null,
-      values.status, new Date().toISOString(), values.durationMs]);
+    // An explicit opt-in is required in the caller. Bound retention and data per entry.
+    const maxRows = Math.min(10000, Math.max(1, Math.trunc(values.maxRows ?? 100)));
+    const maxAgeDays = Math.min(365, Math.max(1, Math.trunc(values.maxAgeDays ?? 7)));
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - maxAgeDays * 86400000).toISOString();
+    await this.sqlite.transaction(workspaceRoot, (db) => {
+      db.run(`INSERT INTO graph_queries(id,repository_id,action,input_text,output_text,status,created_at,duration_ms)
+        VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input.slice(0, 2048),
+        values.output?.slice(0, 32768) ?? null, values.status, now.toISOString(), values.durationMs]);
+      db.run('DELETE FROM graph_queries WHERE repository_id=? AND created_at < ?', [values.repositoryId, cutoff]);
+      db.run(`DELETE FROM graph_queries WHERE repository_id=? AND id NOT IN
+        (SELECT id FROM graph_queries WHERE repository_id=? ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
+      [values.repositoryId, values.repositoryId, maxRows]);
+    });
   }
 
   async disable(workspaceRoot: string, repositoryId: string): Promise<void> {
