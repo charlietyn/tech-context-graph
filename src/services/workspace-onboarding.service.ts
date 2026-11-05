@@ -151,6 +151,6 @@ export class WorkspaceOnboardingService {
 
   private workspaceLabel(workspace: WorkspaceReference, duplicateNames: Set<string>): string {
     if (!duplicateNames.has(workspace.name.trim().toLowerCase())) return workspace.name;
-    return `${workspace.name} · ${basename(resolve(workspace.path)) || workspace.path}`;
+    return `${workspace.name} · ${basename(workspace.path.replace(/\\/g, '/')) || workspace.path}`;
   }
 }

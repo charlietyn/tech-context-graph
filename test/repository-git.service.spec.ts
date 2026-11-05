@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { RepositoryGitService } from '../src/services/repository-git.service';
@@ -61,7 +61,7 @@ describe('RepositoryGitService', () => {
     const updated = await service.pull({ key: 'technology-core', path: fixture.clone });
 
     expect(updated.repositoryPath).toBe(fixture.clone);
-    expect(updated.repositoryRoot).toBe(fixture.clone);
+    expect(realpathSync.native(updated.repositoryRoot).toLowerCase()).toBe(realpathSync.native(fixture.clone).toLowerCase());
     expect(updated.branch).toBe(fixture.branch);
     expect(updated.upstream).toContain(`origin/${fixture.branch}`);
     expect(updated.changed).toBe(true);

@@ -67,6 +67,8 @@ describe('managed graph output migration', () => {
     });
     jest.spyOn(graphify as any, 'estimateTrackedFiles').mockReturnValue(1);
     jest.spyOn(graphify, 'version').mockResolvedValue('test');
+    // Unit tests do not require a globally installed Graphify binary.
+    (graphify as any).helpCache = Promise.resolve('extract --out --incremental');
     expect((await graphify.inspect(root, migrated)).graphPath).toContain('.generations');
     expect(readFileSync(graphPath, 'utf8')).toBe(graph);
     expect(existsSync(oldOutput)).toBe(false);

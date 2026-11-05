@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -83,7 +84,7 @@ describe('Git exclusions, worktrees and fingerprints', () => {
     expect(readFileSync(expected, 'utf8')).toContain('/graphify-out/');
     const result = await runGit(worktree, ['rev-parse', '--show-toplevel'], { env: { GIT_TEST_ASSUME_DIFFERENT_OWNER: '1' } });
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.trim().replace(/\\/g, '/')).toBe(worktree.replace(/\\/g, '/'));
+    expect(realpathSync.native(result.stdout.trim()).toLowerCase()).toBe(realpathSync.native(worktree).toLowerCase());
   });
 
   it('hashes changed content even when Git status text stays identical', async () => {

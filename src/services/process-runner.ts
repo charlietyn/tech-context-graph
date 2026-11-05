@@ -28,6 +28,7 @@ export async function runProcess(command: string, args: string[], options: Proce
     });
     let failure: Error | undefined;
     let stdout = ''; let stderr = '';
+    let capturedBytes = 0;
     const kill = () => {
       if (!child.pid) return;
       if (process.platform === 'win32') {
@@ -47,8 +48,9 @@ export async function runProcess(command: string, args: string[], options: Proce
     const decoders = [new StringDecoder('utf8'), new StringDecoder('utf8')];
     const pending = ['', ''];
     const consume = (index: number, value: string) => {
+      capturedBytes += Buffer.byteLength(value, 'utf8');
       if (index === 0) stdout += value; else stderr += value;
-      if (Buffer.byteLength(stdout, 'utf8') + Buffer.byteLength(stderr, 'utf8') > (options.maxOutputBytes ?? 64 * 1024 * 1024)) {
+      if (capturedBytes > (options.maxOutputBytes ?? 64 * 1024 * 1024)) {
         failure ??= new OperationError('OUTPUT_LIMIT', `${command} output exceeded the configured byte limit.`); kill();
       }
       pending[index] += value;
