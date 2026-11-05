@@ -325,3 +325,7 @@ Released under the [MIT License](LICENSE).
 ### Efficient repository updates
 
 `tcg repository:inspect all --pull` uses the same coordinator as the interactive menu. Git pulls are grouped by real root; Graphify only extracts changed inputs, and each affected technology aggregate is refreshed once. The initial menu shows stored state while freshness is checked asynchronously. Logs include separate Git/graph outcomes and wall-clock timings. See [update, local-ignore migration and recovery rules](docs/en/15-git-pull-before-inspection.md). Run `node scripts/verify-update.cjs` after building for a real Graphify smoke test against temporary local repositories.
+
+## ARGEns v6 — version-pinned technology context (experimental branch)
+
+The `agents-total-integration` branch includes a read-only producer CLI: `tcg technology:query --workspace <path> --technology nestjs --version 10 --question "Where are DTOs?" --json`. It requires an approved versioned core and an integrity-checked Graphify publication. Contract: [English](docs/en/technology-contract-v1.md) · [Español](docs/es/contrato-tecnologia-v1.md). The detailed integration plan is in [docs/agents-total-integration](docs/agents-total-integration/README.md).

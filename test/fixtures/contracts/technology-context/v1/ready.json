@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "status": "READY",
+  "technology": "nestjs",
+  "requestedVersion": "10",
+  "resolvedVersion": "10.4.1",
+  "graphHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "inspectionAt": "2026-01-01T00:00:00.000Z",
+  "freshnessCheckedAt": "2026-01-01T00:00:01.000Z",
+  "sourceRefs": [
+    {
+      "repositoryId": "r1",
+      "repositoryKey": "core-10",
+      "repositoryCommit": null,
+      "sourceFingerprint": "files-v2:synthetic",
+      "graphDigestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "graphifyVersion": "synthetic",
+      "publishedAt": "2026-01-01T00:00:00.000Z",
+      "pointerInspectionId": "inspection-synthetic"
+    }
+  ],
+  "matches": [
+    {
+      "content": "synthetic result",
+      "references": [
+        0
+      ],
+      "confidence": "INDEX"
+    }
+  ],
+  "warnings": [
+    "UNSTRUCTURED_GRAPHIFY_OUTPUT"
+  ],
+  "queryDurationMs": 1
+}

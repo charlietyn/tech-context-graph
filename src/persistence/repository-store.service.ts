@@ -232,7 +232,7 @@ export class RepositoryStoreService {
     repositoryId: string; action: string; input: string; output?: string; status: string; durationMs: number;
   }): Promise<void> {
     await this.sqlite.run(workspaceRoot, `INSERT INTO graph_queries(id,repository_id,action,input_text,output_text,status,created_at,duration_ms)
-      VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input, values.output ?? null,
+      VALUES(?,?,?,?,?,?,?,?)`, [randomUUID(), values.repositoryId, values.action, values.input.slice(0, 2048), values.output?.slice(0, 32768) ?? null,
       values.status, new Date().toISOString(), values.durationMs]);
   }
 

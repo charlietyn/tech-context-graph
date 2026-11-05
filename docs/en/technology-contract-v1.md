@@ -1,0 +1,26 @@
+# CONTRACT-002 — Versioned technology knowledge (v1)
+
+This is a **TCG producer-side, read-only CLI**. PCX retains ownership of authorization, requirements, agents, QA, Git delivery, and business approvals.
+
+## Usage
+
+    tcg technology:query --workspace "/workspaces/tech" --technology nestjs --version 10 --action query --question "Where is DTO validation implemented?" --json
+    tcg technology:query --workspace "/workspaces/tech" --technology nestjs --version 10 --action path --question "Node A" --to "Node B"
+
+Prerequisites: existing TCG workspace; exactly one approved and version-matched **core** repository; READY inspection with publication pointer schema 2; installed Graphify executable.
+
+## Protocol and exit statuses
+
+- Always one JSON object on STDOUT: TechnologyContextResultV1, schemaVersion "1.0", status READY/STALE/MISSING/FAILED, sourceRefs, matches, warnings, durations, typed error.
+- Exit status: 0 READY, 3 STALE, 4 MISSING, 2 FAILED.
+- The --version argument is the **technology core version** (e.g. 10 or 10.4), not the protocol or Graphify version.
+- --revision pins graph SHA-256 (64 lowercase hexadecimal characters). No fallback on revision mismatch.
+- --max-results accepts 1..20; free-form Graphify output is currently one INDEX match, capped at 64 KiB and untrusted. No imaginary file/line citations.
+
+## Provenance and trust
+
+READY carries repositoryId, repositoryKey, repositoryCommit (null for a non-Git source), sourceFingerprint, graphDigestSha256, graphifyVersion, publishedAt and pointerInspectionId. Content digest and source fingerprint are verified before and after Graphify. No Git pulls, inspections, downloads, or aggregate-family fallbacks are triggered.
+
+Only one approved core matching the requested version may be selected. Library compatibility and multi-core composition remain unimplemented until consumer-driven contract negotiation; do not infer package compatibility. TCG cannot authorize an agent, decide a business requirement or mark delivery as integrated.
+
+Legacy interactive TUI graph queries record input/output only when graphify.query_log_disabled is explicitly false. Automated queryPublished never records the prompt or the output. Workspace access and consumer-side tenant ACLs are the caller's responsibility.
