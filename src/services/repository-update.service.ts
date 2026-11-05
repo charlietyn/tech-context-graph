@@ -11,7 +11,7 @@ import { OperationError } from './process-runner';
 import { requireGit, runGit } from './git-access';
 
 export interface UpdateOutcome {
-  key: string; ok: boolean; status: 'UPDATED' | 'UNCHANGED' | 'BLOCKED' | 'FAILED' | 'CANCELLED';
+  key: string; ok: boolean; status: 'UPDATED' | 'UNCHANGED' | 'SKIPPED' | 'BLOCKED' | 'FAILED' | 'CANCELLED';
   gitStatus: 'UPDATED' | 'UNCHANGED' | 'SKIPPED' | 'BLOCKED' | 'FAILED' | 'CANCELLED';
   graphStatus: 'UPDATED' | 'UNCHANGED' | 'PRESERVED' | 'UNAVAILABLE';
   durationMs: number; gitMs: number; graphMs: number; error?: string; errorCode?: string;
@@ -114,9 +114,14 @@ export class RepositoryUpdateService {
           row.notices.push(...result.notices.map((notice) => notice.message));
         } catch (error) {
           const code = error instanceof OperationError ? error.code : 'FAILED';
-          row.errorCode = code; row.error = error instanceof Error ? error.message : String(error);
-          row.status = code === 'CANCELLED' ? 'CANCELLED' : ['LOCAL_CHANGES', 'OWNERSHIP', 'PERMISSION', 'DIVERGED', 'NO_UPSTREAM', 'DETACHED_HEAD', 'LOCKED'].includes(code) ? 'BLOCKED' : 'FAILED';
-          if (pull?.error || controller.signal.aborted && row.gitStatus === 'FAILED') row.gitStatus = row.status as 'BLOCKED' | 'FAILED' | 'CANCELLED';
+          if (code === 'EMPTY_GRAPH') {
+            // A repository without code symbols (docs/rules only) is not an error; there is simply no graph to keep.
+            row.ok = true; row.status = 'SKIPPED'; row.notices.push(error instanceof Error ? error.message : String(error));
+          } else {
+            row.errorCode = code; row.error = error instanceof Error ? error.message : String(error);
+            row.status = code === 'CANCELLED' ? 'CANCELLED' : ['LOCAL_CHANGES', 'OWNERSHIP', 'PERMISSION', 'DIVERGED', 'NO_UPSTREAM', 'DETACHED_HEAD', 'LOCKED'].includes(code) ? 'BLOCKED' : 'FAILED';
+            if (pull?.error || controller.signal.aborted && row.gitStatus === 'FAILED') row.gitStatus = row.status as 'BLOCKED' | 'FAILED' | 'CANCELLED';
+          }
         }
         row.graphMs = Date.now() - graphStarted; row.durationMs = row.gitMs + row.graphMs;
         report.outcomes.push(row); log(JSON.stringify(row));

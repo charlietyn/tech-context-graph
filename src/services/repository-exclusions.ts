@@ -7,18 +7,28 @@ import { requireGit, runGit } from './git-access';
 const RULES = ['graphify-out/', 'tech-graphify-out/', '.tcg/logs/', '.tcg/*.tmp'];
 const HEADER = '# Tech Context Graph local state';
 
+async function localExcludePath(root: string, signal?: AbortSignal): Promise<string> {
+  return resolve(root, requireGit(await runGit(root, ['rev-parse', '--git-path', 'info/exclude'], { signal }), 'Cannot resolve local excludes'));
+}
+
+/** Appends rules missing from the repository-local (never versioned) exclude file. Returns the rules added. */
+export async function appendLocalExcludes(root: string, rules: string[], signal?: AbortSignal, comment = '# TCG local artifacts'): Promise<string[]> {
+  const excludePath = await localExcludePath(root, signal);
+  const previous = existsSync(excludePath) ? await readFile(excludePath, 'utf8') : '';
+  const lines = new Set(previous.split(/\r?\n/).map((line) => line.trim()));
+  const additions = [...new Set(rules.map((rule) => rule.trim()))].filter((rule) => rule && !lines.has(rule));
+  if (additions.length) {
+    await mkdir(dirname(excludePath), { recursive: true });
+    await writeFile(excludePath, `${previous}${previous.endsWith('\n') || !previous ? '' : '\n'}${comment}\n${additions.join('\n')}\n`);
+  }
+  return additions;
+}
+
 /** Only the exact legacy TCG footer is migrated. Index changes are never rewritten. */
 export async function prepareExclusions(root: string, signal?: AbortSignal): Promise<string[]> {
   const notices: string[] = [];
-  const exclude = requireGit(await runGit(root, ['rev-parse', '--git-path', 'info/exclude'], { signal }), 'Cannot resolve local excludes');
-  const excludePath = resolve(root, exclude);
-  const previous = existsSync(excludePath) ? await readFile(excludePath, 'utf8') : '';
-  const lines = new Set(previous.split(/\r?\n/));
-  const additions = RULES.filter((rule) => !lines.has(`/${rule}`));
-  if (additions.length) {
-    await mkdir(dirname(excludePath), { recursive: true });
-    await writeFile(excludePath, `${previous}${previous.endsWith('\n') || !previous ? '' : '\n'}# TCG local artifacts\n${additions.map((r) => `/${r}`).join('\n')}\n`);
-  }
+  await appendLocalExcludes(root, RULES.map((rule) => `/${rule}`), signal);
+  const excludePath = await localExcludePath(root, signal);
   const path = resolve(root, '.gitignore');
   if (!existsSync(path)) return notices;
   const staged = await runGit(root, ['diff', '--cached', '--quiet', '--', '.gitignore'], { signal });

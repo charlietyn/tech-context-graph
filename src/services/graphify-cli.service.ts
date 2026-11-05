@@ -206,12 +206,22 @@ export class GraphifyCliService {
     let communityCount: number | undefined;
     try {
       options.onProgress?.({ stage: 'preparing', percent: 1, message: 'Preparing Graphify' });
-      await this.spawnGraphify(args, (line) => {
+      let memoryPressure = false;
+      const onLine = (line: string) => {
         log.write(`${line}\n`); options.onLine?.(line);
+        if (/MemoryError|BrokenProcessPool/.test(line)) memoryPressure = true;
         const progress = graphifyProgressFromLine(line); if (progress) options.onProgress?.(progress);
         const summary = graphSummaryFromLine(line); if (summary) communityCount = summary.communities;
         const notice = noticeFromLine(line); if (notice && !notices.some((n) => n.message === notice.message)) notices.push(notice);
-      }, options.signal);
+      };
+      try {
+        await this.spawnGraphify(args, onLine, options.signal);
+      } catch (error) {
+        // One worker per CPU can exhaust memory on huge repositories; retry once with a small pool.
+        if (!memoryPressure || options.signal?.aborted || error instanceof OperationError || !/--max-workers/.test(help)) throw error;
+        notices.push({ impact: 'important', message: 'Graphify ran out of memory with parallel workers; retried with --max-workers 2.' });
+        await this.spawnGraphify([...args, '--max-workers', '2'], onLine, options.signal);
+      }
       if (logError) throw logError;
       options.onProgress?.({ stage: 'writing', percent: 98, message: 'Validating new graph' });
       const graphPath = this.resolveGraphPath(generation);
@@ -366,7 +376,11 @@ export class GraphifyCliService {
 
   private async spawnGraphify(args: string[], onLine: (line: string) => void, signal?: AbortSignal): Promise<void> {
     const result = await runProcess('graphify', args, { onLine, signal, timeoutMs: 30 * 60_000, env: scopedGitEnvironment(args[1]) });
-    if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
+    if (result.exitCode === 0) return;
+    if (/graph is empty/i.test(result.stderr)) {
+      throw new OperationError('EMPTY_GRAPH', `Graphify found no code symbols to graph (only docs or unsupported files); nothing to publish. ${result.stderr.trim()}`);
+    }
+    throw new Error(describeExitFailure(result.exitCode, result.stderr));
   }
 
   private async captureGraphify(args: string[]): Promise<GraphCommandResult> {

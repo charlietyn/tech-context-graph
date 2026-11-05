@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { RepositoryGitService } from '../src/services/repository-git.service';
@@ -133,6 +133,59 @@ describe('Git exclusions, worktrees and fingerprints', () => {
       await expect(new RepositoryGitService().pull(repository(f.clone, 'a'))).rejects.toMatchObject({ code: 'AUTHENTICATION' });
       expect(calls).toBe(1);
     } finally { spy.mockRestore(); }
+  });
+});
+
+describe('Automatic reconciliation of upstream mirrors', () => {
+  function advanceUpstream(f: ReturnType<typeof fixture>, file = 'upstream.ts', content = 'export const up = 1;\n') {
+    git(f.seed, 'remote', 'add', 'origin', f.origin);
+    writeFileSync(resolve(f.seed, file), content); git(f.seed, 'add', '.'); git(f.seed, 'commit', '-m', 'upstream change');
+    git(f.seed, 'push', 'origin', 'HEAD');
+  }
+  const backups = (path: string) => git(path, 'for-each-ref', '--format=%(refname)', 'refs/tcg/backups');
+
+  it('replaces local commits that only edit .gitignore and keeps their rules in local excludes', async () => {
+    const f = fixture();
+    writeFileSync(resolve(f.clone, '.gitignore'), 'node_modules/\n<<<<<<< HEAD\n/graphify-out\n.graphifyignore\n=======\n>>>>>>> abc\n');
+    git(f.clone, 'commit', '-am', 'adding gitignore');
+    const mine = git(f.clone, 'rev-parse', 'HEAD');
+    advanceUpstream(f);
+    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'));
+    expect(git(f.clone, 'rev-parse', 'HEAD')).toBe(git(f.clone, 'rev-parse', '@{upstream}'));
+    expect(result.changed).toBe(true);
+    expect(git(f.clone, 'show', 'HEAD:.gitignore')).toBe('node_modules/');
+    const exclude = readFileSync(resolve(f.clone, git(f.clone, 'rev-parse', '--git-path', 'info/exclude')), 'utf8');
+    expect(exclude).toContain('/graphify-out\n'); expect(exclude).toContain('.graphifyignore\n'); expect(exclude).not.toContain('<<<<<<<');
+    expect(git(f.clone, 'rev-parse', backups(f.clone))).toBe(mine);
+    expect(result.notices?.join(' ')).toContain('Backup: refs/tcg/backups/');
+  });
+
+  it('rebases other local work and aborts cleanly on conflicts', async () => {
+    const f = fixture();
+    writeFileSync(resolve(f.clone, 'mine.ts'), 'export const mine = 1;\n'); git(f.clone, 'add', '.'); git(f.clone, 'commit', '-m', 'local work');
+    advanceUpstream(f);
+    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'));
+    expect(git(f.clone, 'rev-parse', 'HEAD~1')).toBe(git(f.clone, 'rev-parse', '@{upstream}'));
+    expect(existsSync(resolve(f.clone, 'mine.ts'))).toBe(true);
+    expect(result.notices?.join(' ')).toContain('Rebased 1 local commit(s)');
+
+    const g = fixture();
+    writeFileSync(resolve(g.clone, 'code.ts'), 'export const value = 2;\n'); git(g.clone, 'commit', '-am', 'local edit');
+    const before = git(g.clone, 'rev-parse', 'HEAD');
+    advanceUpstream(g, 'code.ts', 'export const value = 3;\n');
+    await expect(new RepositoryGitService().pull(repository(g.clone, 'repo'))).rejects.toMatchObject({ code: 'DIVERGED' });
+    expect(git(g.clone, 'rev-parse', 'HEAD')).toBe(before);
+    expect(git(g.clone, 'status', '--porcelain')).toBe('');
+  });
+
+  it('restores tracked files missing from disk and ignores untracked files', async () => {
+    const f = fixture();
+    rmSync(resolve(f.clone, 'code.ts'));
+    writeFileSync(resolve(f.clone, 'package-lock.json'), '{}');
+    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'));
+    expect(readFileSync(resolve(f.clone, 'code.ts'), 'utf8').replace(/\r\n/g, '\n')).toBe('export const value = 1;\n');
+    expect(existsSync(resolve(f.clone, 'package-lock.json'))).toBe(true);
+    expect(result.notices?.join(' ')).toContain('Restored 1 tracked file(s)');
   });
 });
 

@@ -100,14 +100,16 @@ describe('RepositoryGitService', () => {
       .rejects.toThrow(/is not a Git repository/);
   });
 
-  it('does not merge automatically when local and remote branches diverge', async () => {
+  it('does not merge automatically when local and remote branches conflict', async () => {
     const fixture = createFixture();
-    writeFileSync(resolve(fixture.clone, 'local.txt'), 'local commit\n');
-    git(fixture.clone, ['add', 'local.txt']);
+    writeFileSync(resolve(fixture.clone, 'source.txt'), 'local divergence\n');
+    git(fixture.clone, ['add', 'source.txt']);
     git(fixture.clone, ['commit', '-m', 'local divergence']);
+    const before = git(fixture.clone, ['rev-parse', 'HEAD']);
     pushChange(fixture, 'remote divergence\n', 'remote divergence');
 
     await expect(service.pull({ key: 'technology-core', path: fixture.clone }))
       .rejects.toThrow(/Git pull failed.*No graph update was started/);
+    expect(git(fixture.clone, ['rev-parse', 'HEAD'])).toBe(before);
   });
 });

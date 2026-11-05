@@ -26,6 +26,8 @@
 **/tests/
 **/__fixtures__/
 **/fixtures/
+# Go/TypeScript test corpora (tsc/testdata alone is ~13k baseline files and exhausts memory).
+**/testdata/
 **/__snapshots__/
 **/snapshots/
 **/*.test.*
