@@ -20,16 +20,6 @@
 - **Impacto:** escanear otra raíz con un proyecto llamado igual falla y descarta **todos** los candidatos de esa pasada, aunque el informe de `context-pack/` ya se escribió.
 - **Solución:** resolver contra las keys existentes de otra ruta antes de insertar.
 
-### R-06. Los textos del programa no avisan de que `--pull` reescribe commits locales [L]
-
-`RepositoryGitService` puede hacer `git rebase`, `git reset --keep` y `git restore`. `CHANGELOG.md` y `docs/` ya lo describen, pero el código sigue mostrando otra cosa:
-
-- La confirmación de la TUI, el menú de detalle (`console-ui.service.ts`) y la ayuda de `--pull` (`repository-control.commands.ts`) anuncian solo `git pull --ff-only`.
-- El error `LOCAL_CHANGES` menciona ficheros untracked, que ya no se comprueban.
-
-- **Impacto:** el usuario confirma una operación sin saber que puede cambiar el historial de su rama.
-- **Solución:** corregir esos textos. Considerar exigir un flag explícito para reescribir commits locales.
-
 ## Media
 
 ### R-07. Claves de configuración sin efecto [L, con búsqueda]

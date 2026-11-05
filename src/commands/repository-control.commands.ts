@@ -74,7 +74,7 @@ export class RepositoryInspectCommand extends CommandRunner {
   @Option({ flags: '-w, --workspace <path>' }) parseWorkspace(value: string): string { return value; }
   @Option({ flags: '-r, --root <path>' }) parseRoot(value: string): string { return value; }
   @Option({ flags: '--force' }) parseForce(): boolean { return true; }
-  @Option({ flags: '--pull', description: 'Run git pull --ff-only in the original repository folder before Graphify.' }) parsePull(): boolean { return true; }
+  @Option({ flags: '--pull', description: 'Update the original repository folder before Graphify. On a diverged branch, local commits may be rebased or replaced (a backup ref is kept).' }) parsePull(): boolean { return true; }
   @Option({ flags: '--no-cluster', description: 'Skip community clustering and generate only the structural graph.' }) parseCluster(): boolean { return false; }
 
 }

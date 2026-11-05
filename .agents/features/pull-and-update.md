@@ -56,7 +56,7 @@ Siempre crea primero la ref de respaldo `refs/tcg/backups/<rama>/<timestamp>`.
 | Cualquier otro | `git rebase --no-autostash <upstream>` |
 | Conflicto en rebase | `git rebase --abort`; la rama queda intacta, error `DIVERGED` con instrucciones |
 
-Este comportamiento es intencional y está documentado en `docs/en/15-git-pull-before-inspection.md` y `docs/es/15-git-pull-antes-inspeccion.md`. **Si lo cambias, actualiza ambos y `CHANGELOG.md`.** Los textos de la TUI y de `--help` aún no lo reflejan ([R-06](../technical-debt/risks.md)).
+Este comportamiento es intencional y está documentado en `docs/en/15-git-pull-before-inspection.md` y `docs/es/15-git-pull-antes-inspeccion.md`. **Si lo cambias, actualiza ambos, `CHANGELOG.md` y los avisos de la TUI y de `--help`.**
 
 ## Exclusiones: `prepareExclusions`
 

@@ -78,7 +78,7 @@ describe('RepositoryGitService', () => {
     writeFileSync(resolve(fixture.clone, 'source.txt'), 'local edit\n');
 
     await expect(service.pull({ key: 'technology-core', path: fixture.clone }))
-      .rejects.toThrow(/uncommitted or untracked changes/);
+      .rejects.toThrow(/uncommitted changes to tracked files/);
   });
 
   it('refuses to pull a repository without an upstream branch', async () => {

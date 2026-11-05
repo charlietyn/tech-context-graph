@@ -9,7 +9,7 @@ Prioriza por daño potencial. El proyecto toca repositorios reales y estado no r
 - ¿Algún camino modifica un repositorio fuera de `RepositoryGitService` o de una acción explícita?
 - ¿Se pueden perder cambios locales? ¿Hay ref de respaldo antes de reescribir?
 - ¿Se añade `clean`, `stash`, `reset --hard` o configuración global de Git?
-- ¿Coincide el comportamiento con lo que prometen `docs/` y `CHANGELOG.md`? ([R-06](../technical-debt/risks.md))
+- ¿Coincide el comportamiento con lo que prometen `docs/`, `CHANGELOG.md` y los avisos de la TUI y de `--help`?
 
 ### Integridad
 

@@ -62,4 +62,3 @@ Después de modificar código: `graphify update .` (solo AST, sin coste de API).
 - `graphify-out/` es el grafo **de este repo**; `tech-graphify-out/` son grafos de los repositorios del catálogo del usuario.
 - `path` ≠ `sourcePath`; `id` ≠ `key`; `project:*` (YAML) ≠ `repository:*` (SQLite).
 - Hay dos implementaciones de resolución de workspace; la usada por los comandos es `resolveWorkspacePath`.
-- Los textos de la TUI y de `--help` sobre `--pull` van por detrás del código ([R-06](../technical-debt/risks.md)); `docs/en/15-git-pull-before-inspection.md` es la referencia.

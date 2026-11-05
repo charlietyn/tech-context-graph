@@ -20,9 +20,9 @@ Harness que ejecute `CommandFactory.run` o el binario compilado contra un worksp
 
 Separar evidencia, que se actualiza siempre, de identidad y clasificación, que se conservan en `ACCEPTED`. Resolver colisiones de key entre escaneos. Resuelve [R-02](risks.md) y [R-03](risks.md). Requiere tests de escenarios de re-escaneo.
 
-### O-9. Alinear el contrato de seguridad de Git
+### O-9. Consentimiento explícito para reescribir commits
 
-La documentación ya describe la reconciliación automática. Falta corregir los textos de la TUI, `--help` y `LOCAL_CHANGES` ([R-06](risks.md)), y decidir si reescribir commits locales debe exigir un flag explícito.
+La documentación y los avisos ya describen la reconciliación automática. Falta decidir si reescribir commits locales debe exigir un flag explícito, en lugar de ocurrir por defecto con `--pull`.
 
 ### O-10. Honestidad de configuración
 

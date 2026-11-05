@@ -81,7 +81,7 @@ export class RepositoryGitService {
       const preview = dirtyEntries.slice(0, 8).map((line) => `  ${line}`).join('\n');
       const remainder = dirtyEntries.length > 8 ? `\n  ... and ${dirtyEntries.length - 8} more change(s)` : '';
       throw new OperationError('LOCAL_CHANGES',
-        `Cannot pull ${repository.key}: the working tree at ${repositoryRoot} has uncommitted or untracked changes. `
+        `Cannot pull ${repository.key}: the working tree at ${repositoryRoot} has uncommitted changes to tracked files. `
         + `Preserved all changes. Review them before retrying.\n${preview}${remainder}\n${notices.join('\n')}`,
       );
     }

@@ -333,7 +333,7 @@ export class ConsoleUiService {
     );
     const proceed = await this.prompts.requireValue(await clack.confirm({
       message: pullFirst
-        ? `Run git pull --ff-only and then Graphify on ${selected.length} selected repository/repositories? Git failures will be skipped without stopping the others.`
+        ? `Pull the latest code and then run Graphify on ${selected.length} selected repository/repositories? On a diverged branch, local commits may be rebased or replaced (a backup ref is kept). Git failures will be skipped without stopping the others.`
         : `Run Graphify sequentially on ${selected.length} repository/repositories?`,
       initialValue: true,
     }));
@@ -392,7 +392,7 @@ export class ConsoleUiService {
         message: `Actions for ${repository.key}`,
         options: [
           { value: 'update', label: 'Update graph', hint: 'Reuse Graphify cache and process changes.' },
-          { value: 'pull-update', label: 'Pull latest code + update graph', hint: 'Run git pull --ff-only in the original repository folder first.' },
+          { value: 'pull-update', label: 'Pull latest code + update graph', hint: 'Update the original repository folder first. On a diverged branch, local commits may be rebased or replaced (a backup ref is kept).' },
           { value: 'rebuild', label: 'Fully rebuild graph', hint: 'Use --force.' },
           { value: 'source', label: 'Change source-code folder', hint: 'Choose the directory Graphify should inspect.' },
           { value: 'query', label: 'Query the graph' },
