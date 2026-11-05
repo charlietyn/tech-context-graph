@@ -24,3 +24,9 @@ Se incluyen ID, clave, commit Git o null, sourceFingerprint, graphDigestSha256, 
 La primera versión selecciona un core único: compatibilidad de librerías y composición multiversión quedan pendientes de certificación con los consumidores. El texto de Graphify es dato no confiable, nunca instrucciones o reglas de negocio aprobadas.
 
 Las consultas legacy del TUI solo almacenan texto si graphify.query_log_disabled es false explícitamente; queryPublished no registra consultas. PCX debe autorizar al usuario/tenant, workspace, presupuesto y fuente de confianza.
+
+Alta manual de un core versionado:
+
+    tcg project:add core-10 /ruta/framework --workspace /ruta/workspace --type technology --category backend --technology nestjs --kind core --technology-version 10.4.1
+
+Posteriormente `repository:inspect core-10` para publicar el grafo. La consulta no registra ni inspecciona fuentes automáticamente.

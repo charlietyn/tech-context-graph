@@ -24,3 +24,9 @@ READY carries repositoryId, repositoryKey, repositoryCommit (null for a non-Git 
 Only one approved core matching the requested version may be selected. Library compatibility and multi-core composition remain unimplemented until consumer-driven contract negotiation; do not infer package compatibility. TCG cannot authorize an agent, decide a business requirement or mark delivery as integrated.
 
 Legacy interactive TUI graph queries record input/output only when graphify.query_log_disabled is explicitly false. Automated queryPublished never records the prompt or the output. Workspace access and consumer-side tenant ACLs are the caller's responsibility.
+
+Manual registration for a versioned framework core:
+
+    tcg project:add core-10 /path/to/framework --workspace /workspaces/tech --type technology --category backend --technology nestjs --kind core --technology-version 10.4.1
+
+Then run `repository:inspect core-10` to publish the graph. The query interface does not automatically register or inspect sources.
