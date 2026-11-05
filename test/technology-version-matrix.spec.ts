@@ -8,11 +8,16 @@ const fixture = JSON.parse(readFileSync(resolve(__dirname,
 
 describe('Version identity shared with AG and PCX', () => {
   const candidates = [...fixture.cores, ...fixture.libraries] as StoredRepository[];
-  it.each(fixture.expectations)('selects one compatible explicit core for $request', ({ request, expectedCore, expectedError }) => {
-    if (expectedError) {
-      expect(() => selectTechnologyCore(candidates, 'nestjs', request)).toThrow();
-    } else expect(selectTechnologyCore(candidates, 'nestjs', request).id).toBe(expectedCore);
-  });
+  for (const expectation of fixture.expectations as Array<{
+    request: string; expectedCore?: string; expectedError?: string;
+  }>) {
+    it('selects one compatible explicit core for ' + expectation.request, () => {
+      const { request, expectedCore, expectedError } = expectation;
+      if (expectedError) {
+        expect(() => selectTechnologyCore(candidates, 'nestjs', request)).toThrow();
+      } else expect(selectTechnologyCore(candidates, 'nestjs', request).id).toBe(expectedCore);
+    });
+  }
 
   it('refuses a library-only match or ambiguous duplicate cores', () => {
     expect(() => selectTechnologyCore(fixture.libraries as StoredRepository[], 'nestjs', '10')).toThrow();
