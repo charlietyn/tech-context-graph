@@ -54,5 +54,5 @@ La rama y los documentos ya están publicados. Los commits de implementación in
 
 1. Inspeccionar [rama](https://github.com/charlietyn/tech-context-graph/tree/agents-total-integration) y [historial de CI](https://github.com/charlietyn/tech-context-graph/actions/workflows/quality.yml).
 2. Revisar las evidencias en [12-implementation-evidence.md](12-implementation-evidence.md), distinguiendo suite de unidad, smoke CLI y E2E con Graphify real.
-3. Ejecutar `npm ci && npm run lint:types && npm test && npm run build && node scripts/smoke-technology-contract.cjs` en checkout local autorizado; el resultado remoto de Actions solo corresponde al SHA que se reporta.
+3. Ejecutar `npm ci && npm run lint:types && npm test && npm run build && node scripts/smoke-technology-contract.cjs` en checkout local autorizado; el resultado remoto de Actions solo corresponde al SHA que se reporta. Además, la [Graphify Real Integration #42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042) ya validó un grafo sintético code-only real contra `graphifyy==0.9.102` (READY/STALE).
 4. Revisar manualmente en PR; no realizar merge automático a `main` ni asumir que consumidores PCX/AG ya implementaron el contrato.

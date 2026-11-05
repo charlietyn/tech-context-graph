@@ -36,3 +36,5 @@ A READY result additionally requires that the installed Graphify executable repo
 The v1 selector **does not implement semver ranges**: specify exact numeric major, major.minor, or full major.minor.patch prefix (e.g. `10`, `10.4`, `10.4.1`); `^10`, `~10` and `latest` are INVALID_INPUT. Unknown or ambiguous cores never fall back to a mixed aggregate.
 
 TCG explicitly sets `GRAPHIFY_QUERY_LOG_DISABLE=1` for Graphify `query/explain/path` subprocesses. Upstream Graphify maintains a separate global query log otherwise; disabling TCG SQLite alone is insufficient. Local opt-in query history remains bounded and expiring in TCG SQLite only.
+
+The branch also runs a **real** Linux Graphify integration job pinned to `graphifyy==0.9.102` (`scripts/smoke-graphify-real.cjs`), with a temporary TypeScript fixture, code-only extraction, READY query and STALE on source mutation. GitHub Actions evidence: [run 42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042).

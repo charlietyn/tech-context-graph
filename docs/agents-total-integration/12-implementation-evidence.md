@@ -33,11 +33,23 @@ READY exige: core catalogado y aprobado, versión compatible exacta, inspección
 - **Unit tests:** usan doubles de Graphify y simulan casos READY/STALE/MISSING/FAILED; **no** implican Graphify real.
 - **CLI Smoke:** corre el `dist/main.js` compilado en Windows/Ubuntu con respuesta tipada a workspace inexistente; verifica JSON único/código de salida. No cubre consulta exitosa con Graphify real.
 
+## Primera certificación Graphify real en CI
+
+GitHub Actions [Graphify Real Integration #42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042) se ejecutó en `agents-total-integration@2106f4bad0a27972126d37ba6452d3204a598e3b` y concluyó **SUCCESS** el 2026-11-05. No es un mock:
+
+- PyPI `graphifyy==0.9.102` (CLI `graphify 0.9.102`), entorno Ubuntu aislado, no modelo remoto (`GRAPHIFY_BACKEND=none`).
+- Se creó repositorio fuente TypeScript temporal de **5 nodos**, se ejecutó extracción code-only real y se publicó pointer inmutable.
+- `TechnologyQueryService.run()` devolvió **READY** con sourceRefs y digest `43d6b909facf3bdbce019b5f323358e71480c190b27d1c863bb1831321f1c16c` coincidente con el SHA-256 publicado.
+- Tras modificar el fuente, la misma query devolvió **STALE** sin matches; prueba efectiva de freshness en integración con Graphify real.
+- Evidencia sin preguntas/código sensible en el artifact `tcg-graphify-real-evidence`; workflow `.github/workflows/graphify-real-integration.yml`, script `scripts/smoke-graphify-real.cjs`.
+
+Esto **certifica el smoke Linux de un grafo sintético pequeño**, no un benchmark en repos gigantes, ni Windows con Graphify real, ni consumidores PCX/AG. La versión de Graphify está fijada para impedir drift accidental. En cada cambio `src/**` se ejecuta esta workflow de la rama.
+
 ## Requisitos de integración global antes de declarar ARGEns completo
 
 1. **PCX:** adapter para TCG `TechnologyKnowledgePort`; timeout, terminal process lifecycle, ACL workspace, matriz optional/mandatory, hashes ContextPack, contratos de autorización y evidencia QA. Se implementa en PCX, no aquí.
 2. **Apps Generator:** certificar mapping sidecar/meta `schemaVersion 1` vs manifest TCG `2.0`; seleccionar versión por target, sin fallback multiversión; C6 hash y C7/C9 receipts del generador. Se implementa en AG.
-3. **Real Graphify E2E:** instalar versión fijada, obtener grafo de NestJS 10/11 y una librería compatible, query/explain/path, contrastar contra source file, medir memoria; anexar checks con SHA del binario y grafo. No se ha ejecutado con un Graphify externo real desde GitHub Actions.
+3. **Real Graphify E2E:** existe smoke code-only real con `graphifyy==0.9.102` en CI Linux contra grafo sintético de 5 nodos, READY y cambio de fuente → STALE. Falta ampliar a NestJS 10/11 y librerías, los tres verbos query/explain/path en grafo grande y rendimiento.
 4. **UX y agentes:** PCX tiene negocio y agentes; la UI Nuxt consume PCX. DeepSeek Harness bajo política/aislamiento PCX; TCG jamás gestiona tickets, tareas o aprobación de UC.
 5. **Rollout:** marcar CONTRACT-002 1.0 como experimental hasta que consumidores CI publiquen validación de fixtures. Prohibido merge automático a main o declarar KwikVet UC-TH-001 INTEGRATED_VERIFIED únicamente por grafo tecnológico.
 

@@ -36,3 +36,5 @@ READY exige también que la versión instalada de Graphify coincida exactamente 
 El selector v1 **no implementa rangos semver**: pedir prefijo numérico exacto `10`, `10.4` o `10.4.1`; `^10`, `~10`, `latest` son INVALID_INPUT. Core ambiguo o desconocido nunca se resuelve mediante agregados multiversión.
 
 TCG fija `GRAPHIFY_QUERY_LOG_DISABLE=1` en todos los subprocesos Graphify `query/explain/path`: Graphify dispone de un segundo log global ajeno a SQLite, que se desactiva incluso si el historial de TCG se configura por opt-in. La persistencia local opt-in queda acotada y caduca.
+
+La rama ejecuta además una **integración Graphify real en Linux** fijada a `graphifyy==0.9.102` (`scripts/smoke-graphify-real.cjs`): fuente TypeScript temporal, extracción code-only, query READY y STALE tras mutación. Evidencia: [run 42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042).
