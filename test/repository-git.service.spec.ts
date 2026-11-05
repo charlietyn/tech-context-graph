@@ -109,7 +109,7 @@ describe('RepositoryGitService', () => {
     pushChange(fixture, 'remote divergence\n', 'remote divergence');
 
     await expect(service.pull({ key: 'technology-core', path: fixture.clone }))
-      .rejects.toThrow(/Git pull failed.*No graph update was started/);
+      .rejects.toMatchObject({ code: 'REWRITE_CONSENT_REQUIRED' });
     expect(git(fixture.clone, ['rev-parse', 'HEAD'])).toBe(before);
   });
 });

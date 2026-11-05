@@ -8,7 +8,7 @@ import { RepositoryUpdateService } from '../services/repository-update.service';
 interface Options {
   workspace?: string; root?: string; json?: boolean; inspected?: boolean; maxDepth?: number; force?: boolean;
   /** Commander exposes the negated flag --no-cluster as cluster=false. */
-  cluster?: boolean; pull?: boolean;
+  cluster?: boolean; pull?: boolean; allowRewriteLocalCommits?: boolean;
   name?: string; category?: string; technology?: string; technologyLabel?: string; confidence?: number; ignoreProfile?: string;
 }
 
@@ -52,6 +52,7 @@ export class RepositoryInspectCommand extends CommandRunner {
   ) { super(); }
   async run(params: string[], options: Options): Promise<void> {
     const workspace = resolveWorkspacePath(options.workspace, options.root);
+    if (options.allowRewriteLocalCommits && !options.pull) throw new Error('--allow-rewrite-local-commits requires --pull.');
     if (!params.length) throw new Error('Provide repository keys or all. See: tcg repository:list');
     const selected = params.length === 1 && params[0] === 'all'
       ? await this.repositories.list(workspace)
@@ -59,6 +60,7 @@ export class RepositoryInspectCommand extends CommandRunner {
     const report = await this.updates.run(workspace, selected, {
       // Stay undefined without the flag: false would change the extraction configuration hash and re-extract every graph.
       pull: options.pull, force: options.force, noCluster: options.cluster === false ? true : undefined,
+      allowRewriteLocalCommits: options.allowRewriteLocalCommits,
       onProgress: (message) => console.log(message),
     });
     console.log(this.presenter.inspectionTable(report.outcomes));
@@ -76,6 +78,7 @@ export class RepositoryInspectCommand extends CommandRunner {
   @Option({ flags: '--force' }) parseForce(): boolean { return true; }
   @Option({ flags: '--pull', description: 'Update the original repository folder before Graphify. On a diverged branch, local commits may be rebased or replaced (a backup ref is kept).' }) parsePull(): boolean { return true; }
   @Option({ flags: '--no-cluster', description: 'Skip community clustering and generate only the structural graph.' }) parseCluster(): boolean { return false; }
+  @Option({ flags: '--allow-rewrite-local-commits', description: 'Explicitly permit backup+rebase/reset if local commits diverge; requires --pull.' }) parseRewrite(): boolean { return true; }
 
 }
 

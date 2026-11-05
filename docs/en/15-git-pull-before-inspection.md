@@ -80,3 +80,7 @@ npm run lint:types
 The smoke test uses real Graphify and temporary local repositories/remotes. It verifies monorepo deduplication, zero extractions/merges on an unchanged retry and incremental processing of one changed source. No production repositories or LLM API are involved.
 
 Git subprocesses launched by Graphify receive the same exception through process-local environment configuration. See [Git runtime configuration](https://git-scm.com/docs/git-config#Documentation/git-config.txt-GITCONFIGCOUNT).
+
+## ARGEns safety gate — divergent commits
+
+A normal `repository:inspect <key> --pull` only permits fast-forward. When the source branch has local commits not in upstream, TCG returns `REWRITE_CONSENT_REQUIRED`; the graph inspection is not started. To permit *backup refs plus rebase/reset*, first inspect the commits manually, then use `repository:inspect <key> --pull --allow-rewrite-local-commits`. The flag is explicit per operation and is not stored. The interactive UI does not implicitly grant this approval. No `--pull` is performed by `technology:query`.

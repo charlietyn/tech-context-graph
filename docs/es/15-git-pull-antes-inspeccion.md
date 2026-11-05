@@ -84,3 +84,7 @@ npm run lint:types
 La verificaci?n crea repositorios temporales y un remoto local, utiliza Graphify real y comprueba: un pull por monorepo, dos extracciones iniciales, cero extracciones/merges sin cambios y actualizaci?n incremental de una sola fuente. No contacta repositorios de producci?n ni necesita una API LLM.
 
 Los procesos Git que inicia Graphify reciben la misma excepci?n mediante configuraci?n de entorno limitada al proceso. V?ase la [documentaci?n de Git sobre configuraci?n en tiempo de ejecuci?n](https://git-scm.com/docs/git-config#Documentation/git-config.txt-GITCONFIGCOUNT).
+
+## Protección ARGEns: Git divergente
+
+`repository:inspect <key> --pull` solo autoriza fast-forward. Si hay commits locales divergentes, TCG devuelve `REWRITE_CONSENT_REQUIRED` sin rebase/reset ni inspección. Tras revisar explícitamente los commits, se puede usar `repository:inspect <key> --pull --allow-rewrite-local-commits`: crea backup de refs e intenta reconciliar. La autorización no se guarda y la UI interactiva no la supone. `technology:query` nunca hace `pull`.

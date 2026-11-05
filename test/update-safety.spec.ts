@@ -145,13 +145,24 @@ describe('Automatic reconciliation of upstream mirrors', () => {
   }
   const backups = (path: string) => git(path, 'for-each-ref', '--format=%(refname)', 'refs/tcg/backups');
 
+  it('never rewrites divergent local commits unless permission is explicit', async () => {
+    const f = fixture();
+    writeFileSync(resolve(f.clone, 'mine.ts'), 'export const mine = 1;');
+    git(f.clone, 'add', '.'); git(f.clone, 'commit', '-m', 'my code');
+    advanceUpstream(f);
+    const before = git(f.clone, 'rev-parse', 'HEAD');
+    await expect(new RepositoryGitService().pull(repository(f.clone, 'repo')))
+      .rejects.toMatchObject({ code: 'REWRITE_CONSENT_REQUIRED' });
+    expect(git(f.clone, 'rev-parse', 'HEAD')).toBe(before);
+  });
+
   it('replaces local commits that only edit .gitignore and keeps their rules in local excludes', async () => {
     const f = fixture();
     writeFileSync(resolve(f.clone, '.gitignore'), 'node_modules/\n<<<<<<< HEAD\n/graphify-out\n.graphifyignore\n=======\n>>>>>>> abc\n');
     git(f.clone, 'commit', '-am', 'adding gitignore');
     const mine = git(f.clone, 'rev-parse', 'HEAD');
     advanceUpstream(f);
-    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'));
+    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'), { allowRewriteLocalCommits: true });
     expect(git(f.clone, 'rev-parse', 'HEAD')).toBe(git(f.clone, 'rev-parse', '@{upstream}'));
     expect(result.changed).toBe(true);
     expect(git(f.clone, 'show', 'HEAD:.gitignore')).toBe('node_modules/');
@@ -165,7 +176,7 @@ describe('Automatic reconciliation of upstream mirrors', () => {
     const f = fixture();
     writeFileSync(resolve(f.clone, 'mine.ts'), 'export const mine = 1;\n'); git(f.clone, 'add', '.'); git(f.clone, 'commit', '-m', 'local work');
     advanceUpstream(f);
-    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'));
+    const result = await new RepositoryGitService().pull(repository(f.clone, 'repo'), { allowRewriteLocalCommits: true });
     expect(git(f.clone, 'rev-parse', 'HEAD~1')).toBe(git(f.clone, 'rev-parse', '@{upstream}'));
     expect(existsSync(resolve(f.clone, 'mine.ts'))).toBe(true);
     expect(result.notices?.join(' ')).toContain('Rebased 1 local commit(s)');
@@ -174,7 +185,7 @@ describe('Automatic reconciliation of upstream mirrors', () => {
     writeFileSync(resolve(g.clone, 'code.ts'), 'export const value = 2;\n'); git(g.clone, 'commit', '-am', 'local edit');
     const before = git(g.clone, 'rev-parse', 'HEAD');
     advanceUpstream(g, 'code.ts', 'export const value = 3;\n');
-    await expect(new RepositoryGitService().pull(repository(g.clone, 'repo'))).rejects.toMatchObject({ code: 'DIVERGED' });
+    await expect(new RepositoryGitService().pull(repository(g.clone, 'repo'), { allowRewriteLocalCommits: true })).rejects.toMatchObject({ code: 'DIVERGED' });
     expect(git(g.clone, 'rev-parse', 'HEAD')).toBe(before);
     expect(git(g.clone, 'status', '--porcelain')).toBe('');
   });
