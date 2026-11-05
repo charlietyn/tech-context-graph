@@ -48,3 +48,7 @@ node dist/main.js repository:thing clave --workspace "$env:TEMP\tcg-sandbox\ws" 
 ## Después
 
 Añade a [command-reference.md](../cli/command-reference.md) y a `docs/en/10-advanced-cli.md` + `docs/es/10-cli-avanzada.md`.
+
+## Alta/evolución de comando de contrato ARGEns
+
+Un cambio de protocolo de `technology:query` exige: DTO versionado en `src/models`, `@Command` en `src/commands`, providers en `src/cli.module.ts`, JSON Schema en `docs/contracts`, fixtures READY/STALE/MISSING/FAILED, tests Jest unitarios, smoke real de binario `dist/main.js` en Quality Windows+Linux, docs EN/ES y `.agents/cli/command-reference.md`. Nunca escribir banners en stdout de JSON, ni hacer pull o writes como efecto de consulta. Ante un breaking change, crear schemaVersion mayor y mantener v1 hasta migración explícita de PCX/AG.

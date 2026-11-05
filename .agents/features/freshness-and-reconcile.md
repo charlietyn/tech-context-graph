@@ -43,3 +43,7 @@ Tras una actualización, `invalidate(root)` limpia la caché.
 ## Registro de arranque
 
 `.tcg/logs/startup.jsonl` guarda el tiempo hasta el primer menú. Sirve para vigilar regresiones de rendimiento.
+
+## Consulta ARGEns CONTRACT-002 v1
+
+Lectura inmutable: exigir ACCEPTED/READY, pointer schema 2 bajo `.generations`, digest SHA256, último inspectionId SQLite, fingerprint Git dirty/untracked o files, engine Graphify version; verificar *antes y después* de la query. Si source cambia → STALE; si no existe core/version → MISSING; si Graphify falla → FAILED; si hash no coincide → FAILED INTEGRITY_FAILED. TTL efectivo = **0** (sin cache), priorizar exactitud. No fallback implícito a `aggregate.json` de familia ni a graph legacy; no ejecutar `pull` por consultar.

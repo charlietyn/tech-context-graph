@@ -11,6 +11,7 @@ describe('TechnologyContextResult/1 producer', () => {
   it('rejects injection-looking IDs, unsupported versions, and missing path nodes', () => {
     expect(() => normalizeTechnologyQuery({ technology: 'nestjs; echo secret', versionConstraint: '10', action: 'query', question: 'hi' })).toThrow();
     expect(() => normalizeTechnologyQuery({ technology: 'nestjs', versionConstraint: 'latest', action: 'query', question: 'hi' })).toThrow();
+    expect(() => normalizeTechnologyQuery({ technology: 'nestjs', versionConstraint: '^10.4', action: 'query', question: 'hi' })).toThrow();
     expect(() => normalizeTechnologyQuery({ technology: 'nestjs', versionConstraint: '10', action: 'path', question: 'A' })).toThrow();
   });
 

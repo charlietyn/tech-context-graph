@@ -63,7 +63,7 @@ export function normalizeTechnologyQuery(input: Partial<TechnologyQueryRequestV1
   const invalid = (message: string): never => { throw new TechnologyContextError('INVALID_INPUT', message); };
   if (input.schemaVersion !== undefined && input.schemaVersion !== '1.0') invalid('Unsupported request schema version.');
   if (typeof input.technology !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,79}$/.test(input.technology)) invalid('Invalid technology catalog ID.');
-  if (typeof input.versionConstraint !== 'string' || !/^(?:\^|~)?\d+(?:\.(?:\d+|x)){0,2}$/.test(input.versionConstraint)) invalid('A concrete technology version/major is required.');
+  if (typeof input.versionConstraint !== 'string' || !/^\d+(?:\.\d+){0,2}$/.test(input.versionConstraint)) invalid('A concrete major/minor/patch prefix is required (no semver ranges in v1).');
   if (input.action !== 'query' && input.action !== 'explain' && input.action !== 'path') invalid('Unsupported graph action.');
   if (typeof input.question !== 'string' || !input.question.trim() || Buffer.byteLength(input.question, 'utf8') > 2048) invalid('Question/node must have 1..2048 UTF-8 bytes.');
   if (input.action === 'path' && (typeof input.secondNode !== 'string' || !input.secondNode.trim() || Buffer.byteLength(input.secondNode, 'utf8') > 2048)) invalid('Path requires a second node of 1..2048 UTF-8 bytes.');

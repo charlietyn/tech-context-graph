@@ -32,3 +32,5 @@ Alta manual de un core versionado:
 Posteriormente `repository:inspect core-10` para publicar el grafo. La consulta no registra ni inspecciona fuentes automáticamente.
 
 READY exige también que la versión instalada de Graphify coincida exactamente con la registrada al publicar el grafo; tras actualizar Graphify corresponde re-inspeccionar, no consultar silenciosamente índices potencialmente incompatibles.
+
+El selector v1 **no implementa rangos semver**: pedir prefijo numérico exacto `10`, `10.4` o `10.4.1`; `^10`, `~10`, `latest` son INVALID_INPUT. Core ambiguo o desconocido nunca se resuelve mediante agregados multiversión.

@@ -13,9 +13,9 @@ import { sanitizeGraphifyOutput } from './query-output-sanitizer';
 
 function sameRequestedVersion(version: string | undefined, requested: string): boolean {
   if (!version) return false;
-  const requestedParts = requested.replace(/^[~^]/, '').replace(/\.x$/i, '').split('.');
+  const requestedParts = requested.split('.');
   const actual = version.replace(/^[vV]/, '').split('.');
-  return requestedParts.every((part, index) => part === 'x' || part === actual[index]);
+  return requestedParts.every((part, index) => part === actual[index]);
 }
 
 /**
