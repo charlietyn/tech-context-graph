@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0",
+  "framework": "nestjs",
+  "cores": [
+    {
+      "id": "core-10",
+      "key": "nestjs-core-10",
+      "technology": "nestjs",
+      "technologyVersion": "10.4.1",
+      "artifactKind": "core",
+      "catalogStatus": "ACCEPTED",
+      "enabled": true
+    },
+    {
+      "id": "core-11",
+      "key": "nestjs-core-11",
+      "technology": "nestjs",
+      "technologyVersion": "11.0.0",
+      "artifactKind": "core",
+      "catalogStatus": "ACCEPTED",
+      "enabled": true
+    }
+  ],
+  "libraries": [
+    {
+      "id": "lib-10",
+      "key": "nestjs-lib-10",
+      "technology": "nestjs",
+      "packageVersion": "3.0.0",
+      "technologyConstraints": [
+        "^10"
+      ],
+      "artifactKind": "library",
+      "catalogStatus": "ACCEPTED",
+      "enabled": true
+    },
+    {
+      "id": "lib-both",
+      "key": "nestjs-lib-both",
+      "technology": "nestjs",
+      "packageVersion": "2.0.0",
+      "technologyConstraints": [
+        "^10 || ^11"
+      ],
+      "artifactKind": "library",
+      "catalogStatus": "ACCEPTED",
+      "enabled": true
+    }
+  ],
+  "expectations": [
+    {
+      "request": "10",
+      "expectedCore": "core-10"
+    },
+    {
+      "request": "11",
+      "expectedCore": "core-11"
+    },
+    {
+      "request": "12",
+      "expectedError": "VERSION_MISMATCH"
+    }
+  ],
+  "note": "Only core selection is implemented in CONTRACT-002/1; library constraints are distinct metadata and must not be silently folded into the versioned core."
+}
