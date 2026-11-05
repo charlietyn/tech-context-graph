@@ -2,7 +2,7 @@
 
 ## Requisitos
 
-Node ≥ 20 y Git. Graphify solo para inspección real o `verify-update.cjs`. `rg` es opcional.
+Node ≥ 20, Git y Graphify en PATH: `npm test` lo necesita para `graph-output-migration.spec.ts`, además de la inspección real y `verify-update.cjs`. `rg` es opcional.
 
 ```powershell
 npm ci

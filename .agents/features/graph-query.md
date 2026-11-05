@@ -7,7 +7,7 @@
 | Entrada | **Solo TUI:** menú 5 → proyecto → Query, Explain, Path. No hay comando `tcg` |
 | Código | `GraphifyCliService.query`, `ConsoleUiService.queryFlow/pathFlow` |
 | Persistencia | `graph_queries` |
-| Tests | Sin cobertura directa de `query` |
+| Tests | Solo los argumentos de `query`, en `graph-output-migration.spec.ts`, con la ejecución simulada |
 
 ## Flujo
 

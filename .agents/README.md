@@ -22,7 +22,7 @@ No hay servidor, API HTTP, autenticación, colas, ni frontend web. Hay un único
 | Database | SQLite vía `sql.js` (WASM, en memoria, exportado a fichero). Sin ORM: SQL a mano |
 | Configuración | YAML (`yaml`) validado con JSON Schema 2020-12 (`ajv`) |
 | Motor externo | Graphify (`graphify` en PATH, Python, instalado con `uv`), `git`, `rg` opcional |
-| Testing | Jest 30 + `ts-jest`, Git real en temporales, sin Graphify real |
+| Testing | Jest 30 + `ts-jest`, Git real en temporales. Extracción de Graphify simulada, pero `npm test` necesita `graphify` en PATH para `graph-output-migration` |
 | Infrastructure | GitHub Actions (Ubuntu + Windows, Node 20). Sin Docker ni despliegue |
 
 ## Repository Map
