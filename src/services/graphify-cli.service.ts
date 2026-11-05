@@ -12,6 +12,7 @@ import { RepositoryFingerprintService } from './repository-fingerprint.service';
 import { resolveGraphOutput } from './graph-output-path';
 import { TechnologyGraphService } from './technology-graph.service';
 import { GraphifyIgnoreService } from './graphify-ignore.service';
+import { WorkspaceConfigService } from './config.service';
 
 export interface GraphCommandResult {
   output: string;
@@ -118,6 +119,7 @@ export class GraphifyCliService {
     private readonly fingerprints: RepositoryFingerprintService,
     private readonly technologyGraphs?: TechnologyGraphService,
     private readonly ignores?: GraphifyIgnoreService,
+    private readonly config?: WorkspaceConfigService,
   ) {}
 
   private versionCache?: { path: string; checkedAt: number; promise: Promise<string> };
@@ -287,16 +289,21 @@ export class GraphifyCliService {
     const started = Date.now();
     try {
       const result = await this.captureGraphify(args);
-      await this.store.recordQuery(workspaceRoot, {
-        repositoryId: repository.id, action, input: action === 'path' ? `${input} -> ${second}` : input,
-        output: result.output, status: 'SUCCESS', durationMs: result.durationMs,
-      });
+      // Default policy is private: only an explicit opt-in stores TUI query contents.
+      if (this.config?.load(workspaceRoot).graphify?.query_log_disabled === false) {
+        await this.store.recordQuery(workspaceRoot, {
+          repositoryId: repository.id, action, input: action === 'path' ? input + ' -> ' + second : input,
+          output: result.output, status: 'SUCCESS', durationMs: result.durationMs,
+        });
+      }
       return result;
     } catch (error) {
-      await this.store.recordQuery(workspaceRoot, {
-        repositoryId: repository.id, action, input, status: 'FAILED', durationMs: Date.now() - started,
-        output: error instanceof Error ? error.message : String(error),
-      });
+      if (this.config?.load(workspaceRoot).graphify?.query_log_disabled === false) {
+        await this.store.recordQuery(workspaceRoot, {
+          repositoryId: repository.id, action, input, status: 'FAILED', durationMs: Date.now() - started,
+          output: error instanceof Error ? error.message : String(error),
+        });
+      }
       throw error;
     }
   }
