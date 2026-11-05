@@ -34,3 +34,5 @@ Posteriormente `repository:inspect core-10` para publicar el grafo. La consulta 
 READY exige también que la versión instalada de Graphify coincida exactamente con la registrada al publicar el grafo; tras actualizar Graphify corresponde re-inspeccionar, no consultar silenciosamente índices potencialmente incompatibles.
 
 El selector v1 **no implementa rangos semver**: pedir prefijo numérico exacto `10`, `10.4` o `10.4.1`; `^10`, `~10`, `latest` son INVALID_INPUT. Core ambiguo o desconocido nunca se resuelve mediante agregados multiversión.
+
+TCG fija `GRAPHIFY_QUERY_LOG_DISABLE=1` en todos los subprocesos Graphify `query/explain/path`: Graphify dispone de un segundo log global ajeno a SQLite, que se desactiva incluso si el historial de TCG se configura por opt-in. La persistencia local opt-in queda acotada y caduca.

@@ -405,7 +405,12 @@ export class GraphifyCliService {
   }
 
   private async captureGraphify(args: string[], maxOutputBytes = 64 * 1024 * 1024): Promise<GraphCommandResult> {
-    const result = await runProcess('graphify', args, { timeoutMs: 120_000, maxOutputBytes });
+    // Graphify upstream otherwise writes query history in the user's global cache,
+    // even when TCG's SQLite query log is disabled. Always keep ownership local to TCG.
+    const result = await runProcess('graphify', args, {
+      timeoutMs: 120_000, maxOutputBytes,
+      env: { ...process.env, GRAPHIFY_QUERY_LOG_DISABLE: '1' },
+    });
     if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
     return { output: result.stdout.trim(), exitCode: 0, durationMs: result.durationMs };
   }

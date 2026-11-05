@@ -34,3 +34,5 @@ Then run `repository:inspect core-10` to publish the graph. The query interface 
 A READY result additionally requires that the installed Graphify executable reports exactly the version recorded by the immutable publication; after a Graphify upgrade, rebuild the graph (STALE) instead of silently querying with incompatible semantics.
 
 The v1 selector **does not implement semver ranges**: specify exact numeric major, major.minor, or full major.minor.patch prefix (e.g. `10`, `10.4`, `10.4.1`); `^10`, `~10` and `latest` are INVALID_INPUT. Unknown or ambiguous cores never fall back to a mixed aggregate.
+
+TCG explicitly sets `GRAPHIFY_QUERY_LOG_DISABLE=1` for Graphify `query/explain/path` subprocesses. Upstream Graphify maintains a separate global query log otherwise; disabling TCG SQLite alone is insufficient. Local opt-in query history remains bounded and expiring in TCG SQLite only.
