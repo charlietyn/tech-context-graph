@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import { RepositoryDiscoveryService } from '../services/repository-discovery.service';
 import { TechnologyGraphService } from '../services/technology-graph.service';
 import { repositoryGraphOutput } from '../services/graph-output-path';
+import { RepositoryArtifactKind } from '../models/repository-discovery';
 
 @Command({ name: 'project:add', arguments: '<name> <path>', description: 'Manually register a technology, application, or subsystem.' })
 export class ProjectAddCommand extends CommandRunner {
@@ -38,8 +39,8 @@ export class ProjectAddCommand extends CommandRunner {
     const category = options.category || detected?.category || role;
     const technology = options.technology || detected?.technology || 'unknown';
     const ignoreProfile = options.ignoreProfile || detected?.ignore_profile || options.technology || 'common';
-    const artifactKind = automatic ? detected!.artifact_kind
-      : options.kind ?? detected?.artifact_kind ?? (role === 'library' ? 'library' : 'unknown');
+    const artifactKind: RepositoryArtifactKind = automatic ? detected!.artifact_kind
+      : (options.kind as RepositoryArtifactKind | undefined) ?? detected?.artifact_kind ?? (role === 'library' ? 'library' : 'unknown');
     const technologyVersion = options.technologyVersion ?? detected?.technology_version;
     const packageVersion = options.packageVersion ?? detected?.package_version;
     if (artifactKind === 'core' && (!technologyVersion || !/^\d+(?:\.\d+){0,2}$/.test(technologyVersion))) {
