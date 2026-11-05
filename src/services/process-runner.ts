@@ -12,6 +12,7 @@ export interface ProcessOptions {
   env?: NodeJS.ProcessEnv;
   onLine?: (line: string) => void;
   input?: string;
+  maxOutputBytes?: number;
 }
 
 /** Resolves only after the child has closed, including cancellation and timeout. */
@@ -47,8 +48,8 @@ export async function runProcess(command: string, args: string[], options: Proce
     const pending = ['', ''];
     const consume = (index: number, value: string) => {
       if (index === 0) stdout += value; else stderr += value;
-      if (stdout.length + stderr.length > 64 * 1024 * 1024) {
-        failure ??= new OperationError('OUTPUT_LIMIT', `${command} output exceeded 64 MiB.`); kill();
+      if (Buffer.byteLength(stdout, 'utf8') + Buffer.byteLength(stderr, 'utf8') > (options.maxOutputBytes ?? 64 * 1024 * 1024)) {
+        failure ??= new OperationError('OUTPUT_LIMIT', `${command} output exceeded the configured byte limit.`); kill();
       }
       pending[index] += value;
       const lines = pending[index].split(/\r\n|\n|\r/);

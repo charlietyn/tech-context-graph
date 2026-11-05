@@ -301,6 +301,16 @@ export class GraphifyCliService {
     }
   }
 
+  /** Read-only contract consumer entrypoint. Does not persist prompt or Graphify output in SQLite. */
+  async queryPublished(
+    graphPath: string, action: 'query' | 'explain' | 'path', input: string, second?: string,
+  ): Promise<GraphCommandResult> {
+    const args = action === 'path'
+      ? ['path', input, second ?? '', '--graph', graphPath]
+      : [action, input, '--graph', graphPath];
+    return this.captureGraphify(args, 64 * 1024);
+  }
+
   async version(): Promise<string> {
     const path = process.env.PATH ?? '';
     if (!this.versionCache || this.versionCache.path !== path || Date.now() - this.versionCache.checkedAt > 60_000) {
@@ -383,8 +393,8 @@ export class GraphifyCliService {
     throw new Error(describeExitFailure(result.exitCode, result.stderr));
   }
 
-  private async captureGraphify(args: string[]): Promise<GraphCommandResult> {
-    const result = await runProcess('graphify', args, { timeoutMs: 120_000 });
+  private async captureGraphify(args: string[], maxOutputBytes = 64 * 1024 * 1024): Promise<GraphCommandResult> {
+    const result = await runProcess('graphify', args, { timeoutMs: 120_000, maxOutputBytes });
     if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
     return { output: result.stdout.trim(), exitCode: 0, durationMs: result.durationMs };
   }

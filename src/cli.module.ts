@@ -33,6 +33,9 @@ import { PersistenceModule } from './persistence.module';
 import { TechnologyGraphService } from './services/technology-graph.service';
 import { GraphifyIgnoreService } from './services/graphify-ignore.service';
 import { RepositoryGitService } from './services/repository-git.service';
+import { PublishedGraphResolverService } from './services/published-graph-resolver.service';
+import { TechnologyQueryService } from './services/technology-query.service';
+import { TechnologyQueryCommand } from './commands/technology-query.commands';
 
 @Module({
   imports: [ConfigurationModule, PersistenceModule],
@@ -44,6 +47,9 @@ import { RepositoryGitService } from './services/repository-git.service';
     RepositoryGitService,
     RepositoryUpdateService,
     GraphifyCliService,
+    PublishedGraphResolverService,
+    TechnologyQueryService,
+    TechnologyQueryCommand,
     InspectionReconcileService,
     RepositoryControlService,
     GlobalWorkspaceRegistryService,
