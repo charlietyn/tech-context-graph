@@ -38,3 +38,5 @@ The v1 selector **does not implement semver ranges**: specify exact numeric majo
 TCG explicitly sets `GRAPHIFY_QUERY_LOG_DISABLE=1` for Graphify `query/explain/path` subprocesses. Upstream Graphify maintains a separate global query log otherwise; disabling TCG SQLite alone is insufficient. Local opt-in query history remains bounded and expiring in TCG SQLite only.
 
 The branch also runs a **real** Linux Graphify integration job pinned to `graphifyy==0.9.102` (`scripts/smoke-graphify-real.cjs`), with a temporary TypeScript fixture, code-only extraction, READY query and STALE on source mutation. GitHub Actions evidence: [run 42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042).
+
+For contract queries and inspections, the engine version is re-read from the actual Graphify executable on every execution (bypassing the interactive 60-second version cache); a graph built under another engine version returns STALE.

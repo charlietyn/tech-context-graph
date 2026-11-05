@@ -67,7 +67,7 @@ export class TechnologyQueryService {
         throw new TechnologyContextError('STALE_GRAPH', 'Pinned graph revision differs from the latest verified publication.', 'STALE');
       }
       // A Graphify upgrade may change the query semantics of a previously published index.
-      const liveGraphify = await this.graphify.version();
+      const liveGraphify = await this.graphify.version(true);
       if (liveGraphify === 'unknown') {
         throw new TechnologyContextError('GRAPHIFY_UNAVAILABLE', 'The Graphify executable is not available.', 'FAILED', true);
       }

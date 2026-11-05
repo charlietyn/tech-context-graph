@@ -142,7 +142,7 @@ export class GraphifyCliService {
   }): Promise<GraphifyInspectionResult> {
     if (!existsSync(repository.sourcePath)) throw new Error(`Source folder missing: ${repository.sourcePath}`);
     const started = Date.now();
-    const version = await this.version();
+    const version = await this.version(true);
     if (version === 'unknown') throw new Error('Graphify is unavailable.');
     const ignores = this.ignores?.patterns(repository.ignoreProfile) ?? [];
     const configuration = createHash('sha256').update(JSON.stringify({
@@ -322,7 +322,8 @@ export class GraphifyCliService {
     return this.captureGraphify(args, 64 * 1024);
   }
 
-  async version(): Promise<string> {
+  async version(fresh = false): Promise<string> {
+    if (fresh) this.invalidateVersion();
     const path = process.env.PATH ?? '';
     if (!this.versionCache || this.versionCache.path !== path || Date.now() - this.versionCache.checkedAt > 60_000) {
       this.helpCache = undefined;

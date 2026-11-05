@@ -38,3 +38,5 @@ El selector v1 **no implementa rangos semver**: pedir prefijo numérico exacto `
 TCG fija `GRAPHIFY_QUERY_LOG_DISABLE=1` en todos los subprocesos Graphify `query/explain/path`: Graphify dispone de un segundo log global ajeno a SQLite, que se desactiva incluso si el historial de TCG se configura por opt-in. La persistencia local opt-in queda acotada y caduca.
 
 La rama ejecuta además una **integración Graphify real en Linux** fijada a `graphifyy==0.9.102` (`scripts/smoke-graphify-real.cjs`): fuente TypeScript temporal, extracción code-only, query READY y STALE tras mutación. Evidencia: [run 42034585042](https://github.com/charlietyn/tech-context-graph/actions/runs/42034585042).
+
+En las consultas contractuales e inspecciones se comprueba siempre la versión **real** del ejecutable Graphify, sin reutilizar la caché de 60 segundos de la interfaz interactiva; un motor distinto devuelve STALE hasta publicar un nuevo grafo.
