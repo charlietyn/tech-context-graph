@@ -16,6 +16,7 @@ interface RepositoryRow {
   discovered_at: string; updated_at: string; last_seen_at: string;
   inspection_status?: string; last_inspection_at?: string; graph_json_path?: string;
   node_count?: number; edge_count?: number; error_message?: string; source_fingerprint?: string;
+  inspection_id?: string;
 }
 
 @Injectable()
@@ -115,6 +116,7 @@ export class RepositoryStoreService {
     const rows = await this.sqlite.all<RepositoryRow>(workspaceRoot, `
       SELECT r.*,
         i.status AS inspection_status,
+        i.id AS inspection_id,
         i.completed_at AS last_inspection_at,
         COALESCE(i.graph_json_path, valid.graph_json_path) AS graph_json_path,
         COALESCE(i.node_count, valid.node_count) AS node_count,
@@ -394,6 +396,7 @@ export class RepositoryStoreService {
       lastSeenAt: row.last_seen_at,
       inspectionStatus: status,
       lastInspectionAt: row.last_inspection_at ?? undefined,
+      lastInspectionId: row.inspection_id ?? undefined,
       graphJsonPath,
       nodeCount: row.node_count ?? undefined,
       edgeCount: row.edge_count ?? undefined,

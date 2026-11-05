@@ -73,7 +73,10 @@ export class PublishedGraphResolverService {
     } catch {
       throw new TechnologyContextError('INTEGRITY_FAILED', 'Published graph topology is invalid.');
     }
-    if (repository.inspectionStatus !== 'READY' || (repository.sourceFingerprint && repository.sourceFingerprint !== pointer.fingerprint)) {
+    if (repository.inspectionStatus !== 'READY' || repository.lastInspectionId !== pointer.inspectionId ||
+        repository.sourceFingerprint !== pointer.fingerprint ||
+        (repository.graphJsonPath && existsSync(repository.graphJsonPath) &&
+         realpathSync(repository.graphJsonPath) !== realpathSync(graphPath))) {
       throw new TechnologyContextError('STALE_GRAPH', 'Latest inspection is not an approved READY publication.', 'STALE');
     }
     let currentFingerprint: string;

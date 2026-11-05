@@ -20,6 +20,7 @@ describe('PublishedGraphResolverService fail-closed publication', () => {
       id: 'r1', key: 'core', enabled: true, catalogStatus: 'ACCEPTED',
       sourcePath, graphOutput: './tech-graphify-out/technologies/nestjs/core',
       inspectionStatus: 'READY', gitRepository: false, sourceFingerprint: 'files-v2:1',
+      lastInspectionId: 'inspection1', graphJsonPath: graphPath,
     } as StoredRepository;
     const pointer = { schema: 2, graph: '.generations/inspection1/graph.json', graphDigest,
       inspectionId: 'inspection1', fingerprint: 'files-v2:1', graphifyVersion: '1.0.0',
@@ -46,6 +47,13 @@ describe('PublishedGraphResolverService fail-closed publication', () => {
     const f = fixture();
     f.fingerprints.calculate.mockResolvedValue('files-v2:other');
     await expect(f.resolver.resolve(f.workspace, f.repository)).rejects.toMatchObject({ code: 'STALE_GRAPH', status: 'STALE' });
+  });
+
+
+  it('rejects forged pointers whose inspection ID is not the latest persisted run', async () => {
+    const f = fixture();
+    f.repository.lastInspectionId = 'different-id';
+    await expect(f.resolver.resolve(f.workspace, f.repository)).rejects.toMatchObject({ code: 'STALE_GRAPH' });
   });
 
   it('refuses path traversal through a publication pointer', async () => {
