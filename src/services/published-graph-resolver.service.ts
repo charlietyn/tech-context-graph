@@ -86,7 +86,10 @@ export class PublishedGraphResolverService {
       throw new TechnologyContextError('STALE_GRAPH', 'Repository has changed since the published inspection.', 'STALE');
     }
     let repositoryCommit: string | null = null;
-    if (repository.gitRepository && gitRoot(repository.sourcePath)) {
+    if (currentFingerprint.startsWith('git-v2:')) {
+      if (!gitRoot(repository.sourcePath)) {
+        throw new TechnologyContextError('SOURCE_CHANGED', 'Git fingerprint has no valid repository root.', 'STALE');
+      }
       const result = await runGit(repository.sourcePath, ['rev-parse', 'HEAD'], { timeoutMs: 15_000 });
       if (result.exitCode !== 0 || !/^[a-f0-9]{40,64}$/.test(result.stdout.trim())) {
         throw new TechnologyContextError('SOURCE_CHANGED', 'Git revision could not be verified.', 'STALE');

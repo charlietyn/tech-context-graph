@@ -9,6 +9,7 @@ import { RepositoryStoreService } from '../persistence/repository-store.service'
 import { GraphifyCliService } from './graphify-cli.service';
 import { PublishedGraphResolverService } from './published-graph-resolver.service';
 import { OperationError } from './process-runner';
+import { sanitizeGraphifyOutput } from './query-output-sanitizer';
 
 function sameRequestedVersion(version: string | undefined, requested: string): boolean {
   if (!version) return false;
@@ -86,8 +87,8 @@ export class TechnologyQueryService {
       published = after;
       result.freshnessCheckedAt = published.checkedAt;
       if (response.output.trim()) {
-        result.matches = [{ content: response.output, references: [0], confidence: 'INDEX' }];
-        result.warnings.push('UNSTRUCTURED_GRAPHIFY_OUTPUT: repository-level provenance only; no verified file/line citation.');
+        result.matches = [{ content: sanitizeGraphifyOutput(response.output, [workspace, core.path, core.sourcePath]), references: [0], confidence: 'INDEX' }];
+        result.warnings.push('UNSTRUCTURED_GRAPHIFY_OUTPUT: sanitized untrusted content; repository-level provenance only; no verified file/line citation.');
       } else result.warnings.push('EMPTY_GRAPHIFY_QUERY_RESULT');
       result.status = 'READY';
     } catch (error) {
