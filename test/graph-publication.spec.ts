@@ -91,8 +91,24 @@ describe('Validated graph publication and recovery', () => {
       const publication = f.graphify.readPublication(resolve(f.root, f.repo.graphOutput));
       await f.sqlite.run(f.root, "DELETE FROM inspections WHERE id<>?", [publication.inspectionId]);
       await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [publication.inspectionId]);
+      // Recovery is allowed only after the source is restored to the exact published fingerprint.
+      writeFileSync(resolve(f.source, 'code.ts'), 'export const value = 1;');
       const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
       expect(report.healed).toHaveLength(1);
+    } finally { f.sqlite.close(); }
+  });
+
+  it('refuses to heal an interrupted READY pointer when source is now stale', async () => {
+    const f = await fixture();
+    try {
+      await f.graphify.inspect(f.root, f.repo, { deferAggregate: true });
+      const pointer = f.graphify.readPublication(resolve(f.root, f.repo.graphOutput));
+      await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [pointer.inspectionId]);
+      writeFileSync(resolve(f.source, 'code.ts'), 'export const value = 99;');
+      const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
+      expect(report.healed).toHaveLength(0);
+      expect(report.interrupted).toHaveLength(1);
+      expect((await f.store.getByKey(f.root, 'core'))?.inspectionStatus).toBe('FAILED');
     } finally { f.sqlite.close(); }
   });
 
