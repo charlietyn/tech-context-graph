@@ -30,3 +30,5 @@ Alta manual de un core versionado:
     tcg project:add core-10 /ruta/framework --workspace /ruta/workspace --type technology --category backend --technology nestjs --kind core --technology-version 10.4.1
 
 Posteriormente `repository:inspect core-10` para publicar el grafo. La consulta no registra ni inspecciona fuentes automáticamente.
+
+READY exige también que la versión instalada de Graphify coincida exactamente con la registrada al publicar el grafo; tras actualizar Graphify corresponde re-inspeccionar, no consultar silenciosamente índices potencialmente incompatibles.

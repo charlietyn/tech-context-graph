@@ -30,3 +30,5 @@ Manual registration for a versioned framework core:
     tcg project:add core-10 /path/to/framework --workspace /workspaces/tech --type technology --category backend --technology nestjs --kind core --technology-version 10.4.1
 
 Then run `repository:inspect core-10` to publish the graph. The query interface does not automatically register or inspect sources.
+
+A READY result additionally requires that the installed Graphify executable reports exactly the version recorded by the immutable publication; after a Graphify upgrade, rebuild the graph (STALE) instead of silently querying with incompatible semantics.

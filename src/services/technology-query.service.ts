@@ -65,6 +65,14 @@ export class TechnologyQueryService {
       if (request.graphRevision && request.graphRevision !== published.graphHash) {
         throw new TechnologyContextError('STALE_GRAPH', 'Pinned graph revision differs from the latest verified publication.', 'STALE');
       }
+      // A Graphify upgrade may change the query semantics of a previously published index.
+      const liveGraphify = await this.graphify.version();
+      if (liveGraphify === 'unknown') {
+        throw new TechnologyContextError('GRAPHIFY_UNAVAILABLE', 'The Graphify executable is not available.', 'FAILED', true);
+      }
+      if (liveGraphify !== published.reference.graphifyVersion) {
+        throw new TechnologyContextError('STALE_GRAPH', 'Graphify version differs from the published index.', 'STALE');
+      }
       // Graphify is only called after a verified, approved version-specific publication is found.
       const response = await this.graphify.queryPublished(
         published.graphPath, request.action, request.question, request.secondNode,

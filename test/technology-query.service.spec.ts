@@ -30,7 +30,7 @@ describe('TechnologyContextResult/1 producer', () => {
         publishedAt: '2026-01-01T00:00:00.000Z', repositoryCommit: null },
     };
     const resolver = { resolve: jest.fn(async () => published) };
-    const graphify = { queryPublished: jest.fn(async () => ({ output: 'Graphify content', durationMs: 1, exitCode: 0 })) };
+    const graphify = { version: jest.fn(async () => 'v1'), queryPublished: jest.fn(async () => ({ output: 'Graphify content', durationMs: 1, exitCode: 0 })) };
     const service = new TechnologyQueryService(store as never, resolver as never, graphify as never);
     const input = { technology: 'nestjs', versionConstraint: '10', action: 'query' as const, question: 'DTO validation' };
     return { store, resolver, graphify, service, published, input };
@@ -51,6 +51,19 @@ describe('TechnologyContextResult/1 producer', () => {
     const f = fixture();
     const output = await f.service.run('/ws', { ...f.input, graphRevision: 'b'.repeat(64) });
     expect(output.status).toBe('STALE');
+    expect(f.graphify.queryPublished).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when Graphify executable is unavailable or upgraded without a reinspection', async () => {
+    const f = fixture();
+    f.graphify.version.mockResolvedValueOnce('unknown');
+    expect((await f.service.run('/ws', f.input))).toMatchObject({
+      status: 'FAILED', error: { code: 'GRAPHIFY_UNAVAILABLE' },
+    });
+    f.graphify.version.mockResolvedValueOnce('v2');
+    expect((await f.service.run('/ws', f.input))).toMatchObject({
+      status: 'STALE', error: { code: 'STALE_GRAPH' },
+    });
     expect(f.graphify.queryPublished).not.toHaveBeenCalled();
   });
 
