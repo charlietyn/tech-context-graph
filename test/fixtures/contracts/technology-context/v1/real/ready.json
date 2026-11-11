@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "status": "READY",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "sourceRefs": [
+    {
+      "repositoryId": "REPO-45EC6AB7C783",
+      "repositoryKey": "nestjs-core-11",
+      "repositoryCommit": "3fa93e3df7a6c2a4ca4a0c3116fd7cd875f41e70",
+      "sourceFingerprint": "git-v2:7685168df973cb40306751f1e2c47a9461491f181f82773d973be70beeb83e3f",
+      "graphDigestSha256": "a095882a766c221e63c471e14c546823a62fd122bc1ad9ee1627feddfddc78c0",
+      "graphifyVersion": "graphify 0.9.102",
+      "publishedAt": "2026-11-11T02:18:43.015Z",
+      "pointerInspectionId": "4f6ab038-ff16-4a31-8cae-e08b51e35d34"
+    }
+  ],
+  "matches": [
+    {
+      "content": "Graph: [LOCAL_PATH]/tech-graphify-out/technologies/nestjs/nestjs-core-11/.generations/2e26adba-8612-4b1e-936d-dd1cb074a575/graphify-out/graph.json (7 nodes) | Traversal: BFS depth=2 | Start: ['WelcomeService'] | 5 nodes found\n\nNODE WelcomeService [src=hello.ts loc=L1 community=]\nNODE hello.ts [src=hello.ts loc=L1 community=]\nNODE .useWelcome() [src=hello.ts loc=L5 community=]\nNODE .hello() [src=hello.ts loc=L2 community=]\nNODE Caller [src=hello.ts loc=L4 community=]\nEDGE hello.ts --contains [EXTRACTED]--> WelcomeService at=hello.ts:L1\nEDGE WelcomeService --method [EXTRACTED]--> .hello() at=hello.ts:L2\nEDGE .useWelcome() --calls [EXTRACTED context=call]--> WelcomeService at=hello.ts:L5\nEDGE hello.ts --contains [EXTRACTED]--> Caller at=hello.ts:L4\nEDGE Caller --method [EXTRACTED]--> .useWelcome() at=hello.ts:L5",
+      "references": [
+        0
+      ],
+      "confidence": "INDEX"
+    }
+  ],
+  "warnings": [
+    "UNSTRUCTURED_GRAPHIFY_OUTPUT: sanitized untrusted content; repository-level provenance only; no verified file/line citation."
+  ],
+  "queryDurationMs": 352,
+  "resolvedVersion": "11.1.0",
+  "graphHash": "a095882a766c221e63c471e14c546823a62fd122bc1ad9ee1627feddfddc78c0",
+  "inspectionAt": "2026-11-11T02:18:43.015Z",
+  "freshnessCheckedAt": "2026-11-11T02:18:47.148Z"
+}

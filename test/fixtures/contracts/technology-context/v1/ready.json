@@ -11,8 +11,8 @@
     {
       "repositoryId": "r1",
       "repositoryKey": "core-10",
-      "repositoryCommit": null,
-      "sourceFingerprint": "files-v2:synthetic",
+      "repositoryCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceFingerprint": "git-v2:synthetic",
       "graphDigestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "graphifyVersion": "synthetic",
       "publishedAt": "2026-01-01T00:00:00.000Z",

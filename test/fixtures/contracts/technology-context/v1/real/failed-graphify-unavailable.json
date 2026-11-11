@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "status": "FAILED",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "sourceRefs": [
+    {
+      "repositoryId": "REPO-45EC6AB7C783",
+      "repositoryKey": "nestjs-core-11",
+      "repositoryCommit": "3fa93e3df7a6c2a4ca4a0c3116fd7cd875f41e70",
+      "sourceFingerprint": "git-v2:7685168df973cb40306751f1e2c47a9461491f181f82773d973be70beeb83e3f",
+      "graphDigestSha256": "a095882a766c221e63c471e14c546823a62fd122bc1ad9ee1627feddfddc78c0",
+      "graphifyVersion": "graphify 0.9.102",
+      "publishedAt": "2026-11-11T02:18:43.015Z",
+      "pointerInspectionId": "4f6ab038-ff16-4a31-8cae-e08b51e35d34"
+    }
+  ],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 73,
+  "resolvedVersion": "11.1.0",
+  "graphHash": "a095882a766c221e63c471e14c546823a62fd122bc1ad9ee1627feddfddc78c0",
+  "inspectionAt": "2026-11-11T02:18:43.015Z",
+  "freshnessCheckedAt": "2026-11-11T02:18:51.576Z",
+  "error": {
+    "code": "GRAPHIFY_UNAVAILABLE",
+    "retryable": true,
+    "message": "The Graphify executable is not available."
+  }
+}

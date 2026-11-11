@@ -1,0 +1,18 @@
+{
+  "schema": "argens.technology-graph-reference",
+  "schemaVersion": "1.0",
+  "producer": "tech-context-graph",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "status": "READY",
+  "resolvedVersion": "11.1.6",
+  "graphArtifact": "core-publication",
+  "graphSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "publishedAt": "2026-01-01T00:00:00.000Z",
+  "inspectionId": "inspection-synthetic",
+  "graphifyVersion": "graphify 0.9.105",
+  "repositoryKey": "nestjs-core-11",
+  "repositoryCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sourceFingerprint": "git-v2:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "freshnessCheckedAt": "2026-01-01T00:00:01.000Z"
+}

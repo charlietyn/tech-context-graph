@@ -1,0 +1,13 @@
+{
+  "schema": "argens.technology-graph-reference",
+  "schemaVersion": "1.0",
+  "producer": "tech-context-graph",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "status": "FAILED",
+  "error": {
+    "code": "INTEGRITY_FAILED",
+    "retryable": false,
+    "message": "READY requires a Git commit for the technology source; this source is not a Git repository."
+  }
+}

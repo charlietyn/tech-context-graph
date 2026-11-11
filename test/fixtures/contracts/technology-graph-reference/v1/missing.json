@@ -1,0 +1,13 @@
+{
+  "schema": "argens.technology-graph-reference",
+  "schemaVersion": "1.0",
+  "producer": "tech-context-graph",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "status": "MISSING",
+  "error": {
+    "code": "VERSION_MISMATCH",
+    "retryable": false,
+    "message": "No approved core matches the requested technology version."
+  }
+}

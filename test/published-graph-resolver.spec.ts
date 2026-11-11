@@ -26,7 +26,7 @@ describe('PublishedGraphResolverService fail-closed publication', () => {
       inspectionId: 'inspection1', fingerprint: 'files-v2:1', graphifyVersion: '1.0.0',
       publishedAt: new Date().toISOString() };
     writeFileSync(resolve(output, 'tcg-current.json'), JSON.stringify(pointer));
-    const fingerprints = { calculate: jest.fn(async () => 'files-v2:1') };
+    const fingerprints = { describe: jest.fn(async () => ({ value: 'files-v2:1', gitHead: null, clean: null })) };
     const graphify = { graphCounts: jest.fn(() => ({ nodes: 1, edges: 0, danglingEdges: 0 })) };
     const resolver = new PublishedGraphResolverService(fingerprints as never, graphify as never);
     return { workspace, graphPath, output, repository, pointer, fingerprints, resolver };
@@ -45,7 +45,7 @@ describe('PublishedGraphResolverService fail-closed publication', () => {
 
   it('refuses stale source fingerprints', async () => {
     const f = fixture();
-    f.fingerprints.calculate.mockResolvedValue('files-v2:other');
+    f.fingerprints.describe.mockResolvedValue({ value: 'files-v2:other', gitHead: null, clean: null });
     await expect(f.resolver.resolve(f.workspace, f.repository)).rejects.toMatchObject({ code: 'STALE_GRAPH', status: 'STALE' });
   });
 

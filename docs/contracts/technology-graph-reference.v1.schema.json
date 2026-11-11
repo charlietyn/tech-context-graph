@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/charlietyn/tech-context-graph/docs/contracts/technology-graph-reference.v1.schema.json",
+  "title": "CONTRACT-003 TechnologyGraphReferenceV1",
+  "description": "Common, versioned reference to one verified TCG technology graph (immutable core publication). Consumed by PCX (TaskContextPack) and DBIG (architecture.lock). Context only: never an authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "producer",
+    "status",
+    "technology",
+    "requestedVersion"
+  ],
+  "properties": {
+    "schema": {
+      "const": "argens.technology-graph-reference"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "producer": {
+      "const": "tech-context-graph"
+    },
+    "status": {
+      "enum": [
+        "READY",
+        "STALE",
+        "MISSING",
+        "FAILED"
+      ]
+    },
+    "technology": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$"
+    },
+    "requestedVersion": {
+      "type": "string"
+    },
+    "resolvedVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graphArtifact": {
+      "const": "core-publication"
+    },
+    "graphSha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "publishedAt": {
+      "type": "string",
+      "minLength": 20
+    },
+    "inspectionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "graphifyVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repositoryKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repositoryCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40,64}$"
+    },
+    "sourceFingerprint": {
+      "type": "string",
+      "pattern": "^git-v2:[a-f0-9]{64}$"
+    },
+    "freshnessCheckedAt": {
+      "type": "string",
+      "minLength": 20
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "retryable",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_INPUT",
+            "VERSION_MISMATCH",
+            "GRAPH_MISSING",
+            "STALE_GRAPH",
+            "INTEGRITY_FAILED",
+            "TIMEOUT",
+            "GRAPHIFY_UNAVAILABLE",
+            "QUERY_FAILED",
+            "SOURCE_CHANGED",
+            "OUTPUT_TOO_LARGE"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "READY"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "resolvedVersion",
+          "graphArtifact",
+          "graphSha256",
+          "publishedAt",
+          "inspectionId",
+          "graphifyVersion",
+          "repositoryKey",
+          "repositoryCommit",
+          "sourceFingerprint",
+          "freshnessCheckedAt"
+        ],
+        "not": {
+          "required": [
+            "error"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "error"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "graphSha256"
+              ]
+            },
+            {
+              "required": [
+                "repositoryCommit"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

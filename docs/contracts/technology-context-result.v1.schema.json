@@ -209,7 +209,16 @@
         "properties": {
           "sourceRefs": {
             "type": "array",
-            "minItems": 1
+            "minItems": 1,
+            "items": {
+              "properties": {
+                "repositoryCommit": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40,64}$"
+                }
+              },
+              "type": "object"
+            }
           }
         }
       },
@@ -219,5 +228,6 @@
         ]
       }
     }
-  ]
+  ],
+  "$comment": "Plan 28 C1 (2026-11-11): a READY result names a Git repositoryCommit for every sourceRef and always carries freshnessCheckedAt. This only narrows what the producer emits; every READY accepted now was already valid for consumers of the previous 1.0 schema, so schemaVersion stays 1.0."
 }

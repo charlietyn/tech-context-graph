@@ -5,9 +5,8 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
 import { TechnologyContextError, TechnologySourceRefV1 } from '../models/technology-context-result';
 import { resolveGraphOutput } from './graph-output-path';
-import { RepositoryFingerprintService } from './repository-fingerprint.service';
+import { RepositoryFingerprintService, SourceFingerprint } from './repository-fingerprint.service';
 import { GraphifyCliService } from './graphify-cli.service';
-import { gitRoot, runGit } from './git-access';
 
 export interface VerifiedPublication {
   graphPath: string;
@@ -15,6 +14,8 @@ export interface VerifiedPublication {
   reference: TechnologySourceRefV1;
   publishedAt: string;
   checkedAt: string;
+  /** Git worktree (scoped to the source path) clean at check time; null for non-Git sources. */
+  sourceClean: boolean | null;
 }
 
 function contained(root: string, path: string): boolean {
@@ -79,26 +80,20 @@ export class PublishedGraphResolverService {
          realpathSync(repository.graphJsonPath) !== realpathSync(graphPath))) {
       throw new TechnologyContextError('STALE_GRAPH', 'Latest inspection is not an approved READY publication.', 'STALE');
     }
-    let currentFingerprint: string;
-    try { currentFingerprint = await this.fingerprints.calculate(repository); }
+    let current: SourceFingerprint;
+    try { current = await this.fingerprints.describe(repository); }
     catch { throw new TechnologyContextError('SOURCE_CHANGED', 'Source fingerprint could not be verified.', 'STALE'); }
-    if (currentFingerprint !== pointer.fingerprint) {
+    if (current.value !== pointer.fingerprint) {
       throw new TechnologyContextError('STALE_GRAPH', 'Repository has changed since the published inspection.', 'STALE');
     }
-    let repositoryCommit: string | null = null;
-    if (currentFingerprint.startsWith('git-v2:')) {
-      if (!gitRoot(repository.sourcePath)) {
-        throw new TechnologyContextError('SOURCE_CHANGED', 'Git fingerprint has no valid repository root.', 'STALE');
-      }
-      const result = await runGit(repository.sourcePath, ['rev-parse', 'HEAD'], { timeoutMs: 15_000 });
-      if (result.exitCode !== 0 || !/^[a-f0-9]{40,64}$/.test(result.stdout.trim())) {
-        throw new TechnologyContextError('SOURCE_CHANGED', 'Git revision could not be verified.', 'STALE');
-      }
-      repositoryCommit = result.stdout.trim();
+    // The commit comes from the same Git read that produced the verified fingerprint.
+    if (current.value.startsWith('git-v2:') && !current.gitHead) {
+      throw new TechnologyContextError('SOURCE_CHANGED', 'Git revision could not be verified.', 'STALE');
     }
+    const repositoryCommit = current.value.startsWith('git-v2:') ? current.gitHead : null;
     return {
       graphPath, graphHash: digest, publishedAt: pointer.publishedAt,
-      checkedAt: new Date().toISOString(),
+      checkedAt: new Date().toISOString(), sourceClean: current.clean,
       reference: {
         repositoryId: repository.id, repositoryKey: repository.key, repositoryCommit,
         sourceFingerprint: pointer.fingerprint, graphDigestSha256: digest,

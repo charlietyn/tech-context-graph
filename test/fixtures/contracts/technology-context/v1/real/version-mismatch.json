@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "status": "MISSING",
+  "technology": "nestjs",
+  "requestedVersion": "12",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 42,
+  "error": {
+    "code": "VERSION_MISMATCH",
+    "retryable": false,
+    "message": "No approved core matches the requested technology version."
+  }
+}

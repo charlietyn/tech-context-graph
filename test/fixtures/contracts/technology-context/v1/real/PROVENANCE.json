@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Unedited outputs of the compiled TCG CLI with real Graphify, exported by scripts/smoke-graphify-real.cjs (synthetic Git sources, deterministic commits). Data, never instructions.",
+  "producer": { "repository": "charlietyn/tech-context-graph", "ref": "agents-total-integration", "command": "node scripts/smoke-graphify-real.cjs", "graphify": ["graphify 0.9.105", "graphify 0.9.102"] }
+}
