@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "2.0",
+  "outcome": "FAIL",
+  "graphify": "graphify 0.9.105",
+  "tcgCommit": "a13fa8c99ca444dcdbd18fa732968d9b11c3da30",
+  "checks": {
+    "dualMajor": {
+      "v10": "43d6b909facf3bdbce019b5f323358e71480c190b27d1c863bb1831321f1c16c",
+      "v11": "a095882a766c221e63c471e14c546823a62fd122bc1ad9ee1627feddfddc78c0",
+      "commit11": "3fa93e3df7a6c2a4ca4a0c3116fd7cd875f41e70"
+    }
+  }
+}

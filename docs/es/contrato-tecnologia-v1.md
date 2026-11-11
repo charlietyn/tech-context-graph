@@ -66,6 +66,11 @@ El esquema sigue en `schemaVersion: "1.0"`: la regla solo restringe lo que emite
 | flutter 3 | `flutter 3` | flutter 3.47.9 (`packages/flutter`) |
 | react-native `expo` (emite Expo SDK 52) | `expo 52` — C6 aún no publica ese número | expo 52.0.49 (`packages/`) |
 
+## Concurrencia y nombres ambiguos (2026-11-11)
+
+- Las lecturas del contrato no toman el lock del workspace: leen el último catálogo persistido y reverifican la publicación desde disco, así que responden mientras TCG inspecciona otro repositorio. Una publicación reemplazada entre ambas lecturas da STALE.
+- Si Graphify dice que un nombre es ambiguo, el resultado es FAILED `QUERY_FAILED` y `warnings` lleva `AMBIGUOUS_NODE_CANDIDATES: <id>, <id>`; repetir con uno de esos ids.
+
 ## CONTRATO-003 — referencia de grafo
 
     tcg technology:reference --workspace "/workspaces/tech" --technology nestjs --version 11 --json

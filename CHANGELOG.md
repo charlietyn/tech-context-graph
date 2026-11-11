@@ -15,6 +15,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `technology:query` and `technology:reference` read a snapshot of the catalog without the workspace lock, so they answer while an inspection runs (R-21).
+- An ambiguous Graphify node name lists the candidate node ids in `warnings` (`AMBIGUOUS_NODE_CANDIDATES`) (R-22).
+- Operation locks detect a reused PID (Linux start time) and a stopped heartbeat (15 min) (R-23).
+- `build-technology-graphs.cjs` writes `READY.marker` only when every core passed, and checks `--revision <own digest>` per core.
 - CONTRACT-002 READY now requires a clean Git commit for the technology source (plan 28 C1): non-Git sources are `FAILED/INTEGRITY_FAILED`, sources with uncommitted changes are `STALE/SOURCE_CHANGED`. The schema stays `1.0` because it only narrows producer output.
 - A workspace locked by another TCG operation is reported as a retryable `QUERY_FAILED`.
 - Graphify pin for the real integration is `graphifyy==0.9.105`. GitHub workflows run only on manual dispatch.

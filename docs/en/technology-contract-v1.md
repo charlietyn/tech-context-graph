@@ -68,6 +68,11 @@ For contract queries and inspections, the engine version is re-read from the act
 
 Vite cores are registered explicitly (`project:add --technology vite --kind core`): a catalog profile for `vite` would reclassify every Vue SPA that has Vite as a devDependency.
 
+## Concurrency and ambiguous names (2026-11-11)
+
+- Contract reads do not take the workspace lock: they read the last persisted catalog and re-verify the publication from disk, so they work while TCG inspects another repository. A publication replaced between those two reads is STALE.
+- When Graphify reports a node name as ambiguous, the result is FAILED `QUERY_FAILED` and `warnings` carries `AMBIGUOUS_NODE_CANDIDATES: <id>, <id>`; repeat the query with one of those ids.
+
 ## CONTRACT-003 — graph reference
 
     tcg technology:reference --workspace "/workspaces/tech" --technology nestjs --version 11 --json
