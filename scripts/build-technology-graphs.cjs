@@ -9,11 +9,16 @@
  *
  *   node scripts/build-technology-graphs.cjs --workspace <dir> --sources <dir> [--only key,key] [--evidence file]
  *
- * Exit 0 only when every selected target is READY for its major, rejects a wrong major (MISSING) and
- * answers a real query and explain. Every measurement in the evidence is observed, never assumed.
+ * Exit 0 only when every selected target is READY for its major, rejects a wrong major (MISSING),
+ * answers a real query and explain, and answers READY when pinned to its own digest (--revision).
+ * Every measurement in the evidence is observed, never assumed.
+ *
+ * READY.marker: removed when a build starts and written at the workspace root only when every
+ * selected target passed. Consumers (PCX, DBIG, other sessions) must not read the workspace while
+ * the marker is absent. It records the TCG commit, Graphify version and coordinate -> digest table.
  */
 const { spawnSync } = require('node:child_process');
-const { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } = require('node:fs');
+const { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } = require('node:fs');
 const { cpus, totalmem, release, platform } = require('node:os');
 const { resolve } = require('node:path');
 
@@ -75,6 +80,8 @@ const evidence = {
   targets: [],
 };
 let failed = 0;
+const marker = resolve(workspace, 'READY.marker');
+rmSync(marker, { force: true });
 if (!existsSync(resolve(workspace, 'tech-context-graph.workspace.json'))) {
   const created = tcg(['workspace:create', '--path', workspace, '--name', 'technology-graphs', '--non-interactive']);
   if (created.exitCode !== 0) throw new Error('workspace:create failed: ' + created.stderr);
@@ -110,6 +117,20 @@ for (const target of manifest.targets) {
         graphHashMatchesReference: body?.graphHash ? 'sha256:' + body.graphHash === record.reference.body.graphSha256 : false };
       if (body?.status !== 'READY' || !record[name].graphHashMatchesReference) throw new Error(`${name} not READY`);
     }
+    const bare = record.reference.body.graphSha256.slice('sha256:'.length);
+    const pinned = tcg(['technology:query', '--workspace', workspace, '--technology', target.technology, '--version', major,
+      '--action', 'query', '--question', target.question, '--revision', bare, '--json']);
+    record.pinnedRevision = { exitCode: pinned.exitCode, status: json(pinned)?.status, graphHash: json(pinned)?.graphHash };
+    if (pinned.exitCode !== 0 || record.pinnedRevision.graphHash !== bare) throw new Error('--revision <own digest> was not READY');
+    if (target.ambiguousProbe) {
+      const probe = tcg(['technology:query', '--workspace', workspace, '--technology', target.technology, '--version', major,
+        '--action', 'explain', '--question', target.ambiguousProbe, '--json']);
+      const body = json(probe);
+      record.ambiguousProbe = { question: target.ambiguousProbe, exitCode: probe.exitCode, status: body?.status, error: body?.error?.code, warnings: body?.warnings };
+      if (body?.status !== 'FAILED' || !(body.warnings ?? []).some((w) => w.startsWith('AMBIGUOUS_NODE_CANDIDATES:') && w.includes(target.explain))) {
+        throw new Error('ambiguous probe did not list the candidate node ids');
+      }
+    }
     const wrong = tcg(['technology:query', '--workspace', workspace, '--technology', target.technology,
       '--version', String(Number(major) + 100), '--action', 'query', '--question', 'x', '--json']);
     record.wrongMajor = { exitCode: wrong.exitCode, status: json(wrong)?.status, error: json(wrong)?.error?.code };
@@ -126,5 +147,12 @@ for (const target of manifest.targets) {
 }
 evidence.finishedAt = new Date().toISOString();
 evidence.outcome = failed ? 'FAIL' : 'PASS';
+if (!failed) {
+  writeFileSync(marker, JSON.stringify({
+    schemaVersion: '1.0', status: 'READY', tcgCommit: evidence.tcg.sha, graphify: evidence.graphify, finishedAt: evidence.finishedAt,
+    graphs: evidence.targets.map((t) => ({ coordinate: `${t.technology}@${t.requestedMajor}`, resolvedVersion: t.reference.body.resolvedVersion,
+      graphSha256: t.reference.body.graphSha256, repositoryCommit: t.reference.body.repositoryCommit, repositoryKey: t.key })),
+  }, null, 2) + '\n');
+}
 if (args.evidence) writeFileSync(resolve(args.evidence), JSON.stringify(evidence, null, 2) + '\n');
 process.exitCode = failed ? 1 : 0;
