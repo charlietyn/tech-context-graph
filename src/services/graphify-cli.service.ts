@@ -9,7 +9,7 @@ import { dirname, resolve, relative, isAbsolute } from 'node:path';
 import { StoredRepository } from '../models/repository-state';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
 import { RepositoryFingerprintService } from './repository-fingerprint.service';
-import { resolveGraphOutput } from './graph-output-path';
+import { assertGraphOutputContained, resolveGraphOutput } from './graph-output-path';
 import { TechnologyGraphService } from './technology-graph.service';
 import { GraphifyIgnoreService } from './graphify-ignore.service';
 import { WorkspaceConfigService } from './config.service';
@@ -131,6 +131,7 @@ export class GraphifyCliService {
     onLine?: (line: string) => void; onProgress?: (progress: InspectionProgress) => void;
   } = {}): Promise<GraphifyInspectionResult> {
     const output = resolveGraphOutput(workspaceRoot, repository.graphOutput);
+    assertGraphOutputContained(workspaceRoot, output);
     const release = await acquireLock(resolve(output, '.tcg-inspection.lock'));
     try { return await this.inspectLocked(workspaceRoot, repository, output, options); }
     finally { await release(); }

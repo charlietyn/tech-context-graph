@@ -32,10 +32,14 @@ jobs:
           npm run build
       - name: Real Graphify extraction, published pointer and query contract
         run: node scripts/smoke-graphify-real.cjs
+      - name: Real crash recovery around pointer publication (TCG-14)
+        run: node scripts/smoke-crash-recovery.cjs
       - name: Publish sanitized integration evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tcg-graphify-real-evidence
-          path: ci-evidence/graphify-smoke.json
+          path: |
+            ci-evidence/graphify-smoke.json
+            ci-evidence/crash-recovery.json
           if-no-files-found: ignore

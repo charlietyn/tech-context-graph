@@ -43,8 +43,12 @@ export class PublishedGraphResolverService {
       throw new TechnologyContextError('INTEGRITY_FAILED', 'Published graph output is outside the approved workspace.');
     }
     const pointerPath = resolve(realOutput, 'tcg-current.json');
-    if (!existsSync(pointerPath) || !contained(realOutput, realpathSync(pointerPath))) {
+    if (!existsSync(pointerPath)) {
       throw new TechnologyContextError('GRAPH_MISSING', 'No trusted publication pointer is available.', 'MISSING');
+    }
+    // A pointer that a link sends outside its output is tampering, not an absent publication.
+    if (!contained(realOutput, realpathSync(pointerPath))) {
+      throw new TechnologyContextError('INTEGRITY_FAILED', 'Publication pointer escapes its graph output.');
     }
     let pointer: Record<string, unknown>;
     try { pointer = JSON.parse(readFileSync(pointerPath, 'utf8')) as Record<string, unknown>; }
