@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
 const { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, symlinkSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { resolve } = require('node:path');
-const { spawnSync, execFileSync } = require('node:child_process');
+const { spawn, spawnSync, execFileSync } = require('node:child_process');
 const Ajv = require('ajv');
 
 const repo = resolve(__dirname, '..');
@@ -140,6 +140,23 @@ async function main() {
     assert.equal(ref11.body.graphSha256, 'sha256:' + ready11.body.graphHash);
     assert.equal(ref11.body.repositoryCommit, head(core11));
     exported.reference = ref11.body;
+
+    // R-21: another process holds the catalog lock (as a running inspection does); contract reads still work.
+    const holder = spawn(process.execPath, ['-e', [
+      `const { SqliteDatabaseService } = require(${JSON.stringify(resolve(repo, 'dist/persistence/sqlite-database.service'))});`,
+      `new SqliteDatabaseService().open(${JSON.stringify(workspace)}).then(() => { console.log('locked'); process.stdin.resume(); });`,
+    ].join('\n')], { env, stdio: ['pipe', 'pipe', 'inherit'] });
+    try {
+      await new Promise((done, fail) => {
+        holder.stdout.on('data', (chunk) => { if (String(chunk).includes('locked')) done(); });
+        holder.on('exit', (code) => fail(new Error('lock holder exited early: ' + code)));
+      });
+      expectStatus(query('nestjs', '11', 'query', 'WelcomeService'), 'READY', 0);
+      expectStatus(reference('nestjs', '11'), 'READY', 0);
+      const blockedWrite = tcg(['repository:inspect', 'nestjs-core-11', '--workspace', workspace, '--no-cluster']);
+      assert.notEqual(blockedWrite.exitCode, 0, 'a writer must still be excluded while the lock is held');
+      evidence.checks.lockFreeReads = { queryWhileLocked: 'READY', referenceWhileLocked: 'READY', writerWhileLocked: 'refused' };
+    } finally { holder.kill(); }
 
     // Negative paths, each with its documented status and exit code.
     const missing = query('nestjs', '12', 'query', 'WelcomeService');

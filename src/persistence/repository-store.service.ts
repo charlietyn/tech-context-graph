@@ -19,6 +19,14 @@ interface RepositoryRow {
   inspection_id?: string;
 }
 
+export interface RepositoryListOptions {
+  enabledOnly?: boolean;
+  inspectedOnly?: boolean;
+  catalogStatuses?: CatalogStatus[];
+  id?: string;
+  key?: string;
+}
+
 @Injectable()
 export class RepositoryStoreService {
   constructor(private readonly sqlite: SqliteDatabaseService) {}
@@ -94,13 +102,22 @@ export class RepositoryStoreService {
     }
   }
 
-  async list(workspaceRoot: string, options: {
-    enabledOnly?: boolean;
-    inspectedOnly?: boolean;
-    catalogStatuses?: CatalogStatus[];
-    id?: string;
-    key?: string;
-  } = {}): Promise<StoredRepository[]> {
+  async list(workspaceRoot: string, options: RepositoryListOptions = {}): Promise<StoredRepository[]> {
+    const { sql, params } = this.listQuery(options);
+    return (await this.sqlite.all<RepositoryRow>(workspaceRoot, sql, params)).map((row) => this.mapRow(row, workspaceRoot));
+  }
+
+  /**
+   * R-21: same rows as `list`, read from the last persisted catalog without taking the workspace lock,
+   * so contract reads (`technology:query`, `technology:reference`) never fail while an inspection runs.
+   * Everything a READY answer depends on is re-verified from disk afterwards by the resolver.
+   */
+  async listSnapshot(workspaceRoot: string, options: RepositoryListOptions = {}): Promise<StoredRepository[]> {
+    const { sql, params } = this.listQuery(options);
+    return (await this.sqlite.readSnapshot<RepositoryRow>(workspaceRoot, sql, params)).map((row) => this.mapRow(row, workspaceRoot));
+  }
+
+  private listQuery(options: RepositoryListOptions): { sql: string; params: unknown[] } {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (options.id) { conditions.push('r.id = ?'); params.push(options.id); }
@@ -113,7 +130,7 @@ export class RepositoryStoreService {
       params.push(...statuses);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = await this.sqlite.all<RepositoryRow>(workspaceRoot, `
+    return { params, sql: `
       SELECT r.*,
         i.status AS inspection_status,
         i.id AS inspection_id,
@@ -132,8 +149,7 @@ export class RepositoryStoreService {
       )
       ${where}
       ORDER BY r.category, r.technology, r.repo_key
-    `, params);
-    return rows.map((row) => this.mapRow(row, workspaceRoot));
+    ` };
   }
 
   async detectedCandidates(workspaceRoot: string): Promise<StoredRepository[]> {

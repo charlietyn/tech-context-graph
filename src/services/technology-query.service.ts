@@ -6,7 +6,7 @@ import {
 } from '../models/technology-context-result';
 import { TechnologyGraphReferenceV1, technologyGraphReferenceFromResult } from '../models/technology-graph-reference';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
-import { GraphifyCliService } from './graphify-cli.service';
+import { GraphifyAmbiguityError, GraphifyCliService } from './graphify-cli.service';
 import { PublishedGraphResolverService, VerifiedPublication } from './published-graph-resolver.service';
 import { OperationError } from './process-runner';
 import { sanitizeGraphifyOutput } from './query-output-sanitizer';
@@ -55,6 +55,13 @@ export function assertReadyProvenance(published: VerifiedPublication): void {
 
 function toTypedError(error: unknown): TechnologyContextError {
   if (error instanceof TechnologyContextError) return error;
+  if (error instanceof GraphifyAmbiguityError) {
+    // Same closed error enum as before (PCX parses it strictly); the candidates travel in warnings.
+    return new TechnologyContextError('QUERY_FAILED', error.message);
+  }
+  if (error instanceof OperationError && error.code === 'SCHEMA_OUTDATED') {
+    return new TechnologyContextError('QUERY_FAILED', 'The workspace catalog needs a migration by this TCG version (run any tcg command on it once).');
+  }
   if (error instanceof OperationError && error.code === 'LOCKED') {
     // Another TCG controller (e.g. an inspection) owns the workspace; nothing was read, so retrying is safe.
     return new TechnologyContextError('QUERY_FAILED', 'The TCG workspace is busy with another operation (LOCKED); retry later.', 'FAILED', true);
@@ -90,7 +97,7 @@ export class TechnologyQueryService {
   private async verifiedPublication(
     workspace: string, request: TechnologyQueryRequestV1, result: TechnologyContextResultV1,
   ): Promise<{ core: StoredRepository; published: VerifiedPublication }> {
-    const core = selectTechnologyCore(await this.store.list(workspace), request.technology, request.versionConstraint);
+    const core = selectTechnologyCore(await this.store.listSnapshot(workspace), request.technology, request.versionConstraint);
     result.resolvedVersion = core.technologyVersion;
     const published = await this.resolver.resolve(workspace, core);
     result.graphHash = published.graphHash;
@@ -118,6 +125,9 @@ export class TechnologyQueryService {
     result.matches = [];
     if (typed.code === 'INTEGRITY_FAILED' || typed.code === 'SOURCE_CHANGED' || typed.code === 'STALE_GRAPH') result.sourceRefs = [];
     result.error = { code: typed.code, retryable: typed.retryable, message: typed.message };
+    if (error instanceof GraphifyAmbiguityError && error.candidates.length) {
+      result.warnings.push('AMBIGUOUS_NODE_CANDIDATES: ' + error.candidates.join(', '));
+    }
   }
 
   async run(workspace: string, input: Partial<TechnologyQueryRequestV1>): Promise<TechnologyContextResultV1> {

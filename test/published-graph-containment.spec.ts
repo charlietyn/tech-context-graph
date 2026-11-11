@@ -65,7 +65,7 @@ async function fixture(options: { sourceViaLink?: boolean } = {}) {
     version: jest.fn(async () => 'v1'),
     queryPublished: jest.fn(async () => ({ output: 'answer', durationMs: 1, exitCode: 0 })),
   };
-  const service = new TechnologyQueryService({ list: async () => [repository] } as never,
+  const service = new TechnologyQueryService({ listSnapshot: async () => [repository] } as never,
     new PublishedGraphResolverService(fingerprints, graphify as never), graphify as never);
   const query = (ws = workspace) => service.run(ws, { technology: 'nestjs', versionConstraint: '11', action: 'query', question: 'A' });
   return { root, workspace, outside, output, graphPath, realSource, sourcePath, repository, graphify, query };

@@ -4,6 +4,18 @@ import { migrateFlatGraphOutputs } from './graph-output-migration';
 
 @Injectable()
 export class SqliteMigrationService {
+  /** Highest versioned migration. Append-only: bump together with a new ensureMigration call. */
+  static readonly LATEST_VERSION = 9;
+
+  /** True when `db` already carries every versioned migration of this TCG build (read-only check). */
+  isCurrent(db: Database): boolean {
+    try {
+      const result = db.exec('SELECT MAX(version) FROM schema_migrations');
+      const version = Number(result[0]?.values[0]?.[0] ?? 0);
+      return Number.isInteger(version) && version >= SqliteMigrationService.LATEST_VERSION;
+    } catch { return false; }
+  }
+
   migrate(db: Database, workspaceRoot: string): void {
     db.exec(`
       PRAGMA foreign_keys = ON;

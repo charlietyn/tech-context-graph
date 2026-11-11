@@ -413,7 +413,11 @@ export class GraphifyCliService {
       timeoutMs: 120_000, maxOutputBytes,
       env: { ...process.env, GRAPHIFY_QUERY_LOG_DISABLE: '1' },
     });
-    if (result.exitCode !== 0) throw new Error(describeExitFailure(result.exitCode, result.stderr));
+    if (result.exitCode !== 0) {
+      const ambiguity = parseGraphifyAmbiguity(result.stdout);
+      if (ambiguity) throw ambiguity;
+      throw new Error(describeExitFailure(result.exitCode, result.stderr));
+    }
     return { output: result.stdout.trim(), exitCode: 0, durationMs: result.durationMs };
   }
 
@@ -427,4 +431,24 @@ export class GraphifyCliService {
       return result.exitCode === 0 ? result.stdout.split(/\r?\n/).filter(Boolean).length : undefined;
     } catch (error) { if (signal?.aborted) throw error; return undefined; }
   }
+}
+
+/**
+ * R-22: Graphify (0.9.105) exits non-zero and prints `Ambiguous: '<name>' matches N nodes …` followed by
+ * `id: <node id>` lines when a name matches several nodes (e.g. a class and its constructor). The output is
+ * untrusted: only ids matching a strict pattern are kept, at most 10, and no other text is propagated.
+ */
+export class GraphifyAmbiguityError extends Error {
+  readonly code = 'AMBIGUOUS_NODE';
+  constructor(public readonly candidates: string[]) {
+    super('The node name is ambiguous in this graph; retry with one of the candidate node ids.');
+  }
+}
+
+export function parseGraphifyAmbiguity(stdout: string): GraphifyAmbiguityError | undefined {
+  if (!/^Ambiguous:/m.test(stdout)) return undefined;
+  const candidates = [...stdout.matchAll(/^\s*id:\s*(\S+)\s*$/gm)]
+    .map((match) => match[1])
+    .filter((id) => /^[A-Za-z0-9_.:-]{1,200}$/.test(id));
+  return new GraphifyAmbiguityError([...new Set(candidates)].slice(0, 10));
 }
