@@ -111,3 +111,11 @@ El contrato de salida se apoya en regex y detección por `--help`. Un cambio de 
 ## Seguimiento de riesgos en `agents-total-integration` (no borrar evidencias originales)
 
 Mitigaciones incluidas en esta rama: rescan no sobrescribe clasificación `ACCEPTED`; claves nuevas colisionadas adquieren sufijo determinista; query CLI sin persistencia de prompts; TUI almacena queries solo por opt-in explícito; lectura versionada de Graphify verifica publicación, integridad, commit/fingerprint y SQLite; pruebas unit no requieren binario Graphify. Riesgos aún por certificar: E2E de Graphify real, integración de fixtures con consumidores PCX/AG, límites de ejecución/sandbox multi-tenant fuera del repositorio, limpieza configurable de generaciones/logs y políticas de consentimiento Git divergente. Cada mitigación se debe corroborar con GitHub Actions en SHA concreto.
+
+### R-21. Lecturas de contrato bloqueadas durante inspecciones [M] (2026-11-11)
+
+`SqliteDatabaseService.open` toma el lock del workspace durante toda la vida del proceso. Un `technology:query`/`technology:reference` lanzado mientras otro proceso inspecciona falla con `QUERY_FAILED` `retryable: true` (antes `retryable: false`). Mitigación pendiente: lectura de un snapshot inmutable del catálogo sin lock exclusivo. Los consumidores (PCX) deben reintentar con backoff o tratarlo como DEGRADED/BLOCKED según su política.
+
+### R-22. Nombres ambiguos en Graphify [L] (2026-11-11)
+
+Graphify 0.9.105 sale con código 3 cuando un nombre coincide con varios nodos (p. ej. `SpringApplication`: clase y constructor) y pide el id completo. TCG lo devuelve como `FAILED/QUERY_FAILED` sin contenido (fail-closed); el consumidor debe repetir con el id del nodo. No se parsea la desambiguación.

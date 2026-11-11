@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "tcg-technology-graph-build",
+  "startedAt": "2026-11-11T02:22:18.809Z",
+  "tcg": {
+    "sha": "af13162a81881c00e1b5f32b6e76130cbf727c2f",
+    "node": "v24.20.0"
+  },
+  "graphify": "graphify 0.9.105",
+  "environment": {
+    "platform": "linux",
+    "release": "5.15.167.4-microsoft-standard-WSL2",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "cpus": 16,
+    "totalMemoryBytes": 33525407744
+  },
+  "targets": [
+    {
+      "key": "nestjs-core-11",
+      "technology": "nestjs",
+      "technologyVersion": "11.2.9",
+      "requestedMajor": "11",
+      "repository": "https://github.com/nestjs/nest",
+      "ref": "v11.2.9",
+      "commit": "c6cf340d071f89305236a942a9cf3bf7707849fa",
+      "subpath": "",
+      "trackedFiles": 2180,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 687
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 568,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "nestjs",
+          "requestedVersion": "11",
+          "resolvedVersion": "11.2.9",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:6afb34168b82e49e63eb8e877203d4cf8387322ba0161aa9bfb6e6c8fd9f8b16",
+          "publishedAt": "2026-11-11T02:02:19.620Z",
+          "inspectionId": "ce60413c-bd9f-4ba7-88b2-dcea3f59fb05",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "nestjs-core-11",
+          "repositoryCommit": "c6cf340d071f89305236a942a9cf3bf7707849fa",
+          "sourceFingerprint": "git-v2:5ce24308ec85e328e7d615beed81065e1b04247bdb97cfe977915fbd2bbfb55b",
+          "freshnessCheckedAt": "2026-11-11T02:22:20.515Z"
+        }
+      },
+      "graph": {
+        "bytes": 12042483,
+        "nodes": 13240,
+        "links": 28743
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 1733,
+        "status": "READY",
+        "queryDurationMs": 1378,
+        "matchBytes": 6645,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 1575,
+        "status": "READY",
+        "queryDurationMs": 1236,
+        "matchBytes": 1523,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "nestjs-core-10",
+      "technology": "nestjs",
+      "technologyVersion": "10.4.22",
+      "requestedMajor": "10",
+      "repository": "https://github.com/nestjs/nest",
+      "ref": "v10.4.22",
+      "commit": "e88b270cb5497d122183d7cad423dcbaaae037f0",
+      "subpath": "",
+      "trackedFiles": 2048,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 18279
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 619,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "nestjs",
+          "requestedVersion": "10",
+          "resolvedVersion": "10.4.22",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:6b813687aa2357ccb7574066819f19b74a0c6e982d38a65b70bee54254bc369f",
+          "publishedAt": "2026-11-11T02:22:41.775Z",
+          "inspectionId": "74d9d7a3-2902-49d8-8820-fe9286ee9271",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "nestjs-core-10",
+          "repositoryCommit": "e88b270cb5497d122183d7cad423dcbaaae037f0",
+          "sourceFingerprint": "git-v2:9b8dd1a0cbc936715052b5b27f549dc6528f0c3b8ddf08c3fe030882921c02bc",
+          "freshnessCheckedAt": "2026-11-11T02:22:44.824Z"
+        }
+      },
+      "graph": {
+        "bytes": 11032955,
+        "nodes": 12202,
+        "links": 26365
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 1791,
+        "status": "READY",
+        "queryDurationMs": 1440,
+        "matchBytes": 6645,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 1645,
+        "status": "READY",
+        "queryDurationMs": 1307,
+        "matchBytes": 1523,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    }
+  ],
+  "finishedAt": "2026-11-11T02:22:48.803Z",
+  "outcome": "PASS"
+}

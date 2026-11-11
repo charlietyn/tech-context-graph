@@ -2,6 +2,8 @@
 
 > **Estado actualizado (2026-11-05): rama `agents-total-integration` creada, documentos publicados e implementación de productor TCG en desarrollo y verificación.** Este README comenzó como auditoría previa a la autorización de GitHub; las observaciones históricas de `main@6df893c` se conservan como baseline, no como estado actual. Revisar [12-implementation-evidence.md](12-implementation-evidence.md) y los checks de GitHub Actions antes de inferir completitud.
 
+> **2026-11-11:** planes TCG-1/2/3 ejecutados en local; resultado, evidencias por SHA, incompatibilidades y pendientes en [14-resultado-certificacion-tcg-2026-11-11.md](14-resultado-certificacion-tcg-2026-11-11.md).
+
 **Rama de trabajo:** [agents-total-integration](https://github.com/charlietyn/tech-context-graph/tree/agents-total-integration). **No se modifica ni se fusiona `main`.** Todo cambio de producto en este repositorio deriva de la instrucción posterior y explícita del usuario de implementar el plan, que sustituyó el límite inicial de "solo documentación".
 
 ## Alcance y normas
@@ -36,6 +38,8 @@ TCG es **un CLI NestJS/Clack v4.0.0**, con catálogo SQLite (`sql.js`), fuentes 
 | [10-execution-roadmap.md](10-execution-roadmap.md) | Secuencia TCG y dependencias globales F0–F15. |
 | [11-risks-and-decisions.md](11-risks-and-decisions.md) | Decisiones humanas, peligros de Git, estados, bloqueos. |
 | [12-implementation-evidence.md](12-implementation-evidence.md) | **Estado efectivo de código, CI, evidencias, pendientes y limitaciones por WP.** |
+| [13-plan-ejecutable-contrato-tecnologico-y-validacion-local-2026-11-10.md](13-plan-ejecutable-contrato-tecnologico-y-validacion-local-2026-11-10.md) | Plan TCG-1/2/3. |
+| [14-resultado-certificacion-tcg-2026-11-11.md](14-resultado-certificacion-tcg-2026-11-11.md) | **Resultado de TCG-1/2/3, C1/C2, CONTRACT-003 y grafos de C6.** |
 
 ### Política de evidencia
 

@@ -1,0 +1,533 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "tcg-technology-graph-build",
+  "startedAt": "2026-11-11T02:20:27.190Z",
+  "tcg": {
+    "sha": "af13162a81881c00e1b5f32b6e76130cbf727c2f",
+    "node": "v24.20.0"
+  },
+  "graphify": "graphify 0.9.105",
+  "environment": {
+    "platform": "linux",
+    "release": "5.15.167.4-microsoft-standard-WSL2",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "cpus": 16,
+    "totalMemoryBytes": 33525407744
+  },
+  "targets": [
+    {
+      "key": "vite-core-8",
+      "technology": "vite",
+      "technologyVersion": "8.3.7",
+      "requestedMajor": "8",
+      "repository": "https://github.com/vitejs/vite",
+      "ref": "v8.3.7",
+      "commit": "5def936009d2637a48d056e197aebc6242ac27c6",
+      "subpath": "",
+      "trackedFiles": 2928,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 596
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 523,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "vite",
+          "requestedVersion": "8",
+          "resolvedVersion": "8.3.7",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:7831cb9372413c37fbc00a18245ac29c58baba6ec8c7fae4e6a7bb5962a773ff",
+          "publishedAt": "2026-11-11T02:01:41.620Z",
+          "inspectionId": "c0b6cc76-58cf-4d6c-aaa2-35ff1c6ee1e3",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "vite-core-8",
+          "repositoryCommit": "5def936009d2637a48d056e197aebc6242ac27c6",
+          "sourceFingerprint": "git-v2:9310fad1607dbda31e1034b72d3a75b3374e2cd4b2da58b19880fe8710773f62",
+          "freshnessCheckedAt": "2026-11-11T02:20:28.747Z"
+        }
+      },
+      "graph": {
+        "bytes": 3891898,
+        "nodes": 4512,
+        "links": 10094
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 1135,
+        "status": "READY",
+        "queryDurationMs": 792,
+        "matchBytes": 6734,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 1006,
+        "status": "READY",
+        "queryDurationMs": 655,
+        "matchBytes": 2223,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "nuxt-core-4",
+      "technology": "nuxt",
+      "technologyVersion": "4.6.4",
+      "requestedMajor": "4",
+      "repository": "https://github.com/nuxt/nuxt",
+      "ref": "v4.6.4",
+      "commit": "b9a6b687018a87db72832620beec55bf46abd623",
+      "subpath": "",
+      "trackedFiles": 2495,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 632
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 531,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "nuxt",
+          "requestedVersion": "4",
+          "resolvedVersion": "4.6.4",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:bf31483a3ade454abf810d6beaf2f9fea2d7cdd91d7fd8ea2e836020f5f04e2a",
+          "publishedAt": "2026-11-11T02:01:56.770Z",
+          "inspectionId": "554941db-b158-45e5-85b6-ee4111132f88",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "nuxt-core-4",
+          "repositoryCommit": "b9a6b687018a87db72832620beec55bf46abd623",
+          "sourceFingerprint": "git-v2:4bedffa50183281fedee9823c4c48c32680b4bd991784695c865761f8beda2ad",
+          "freshnessCheckedAt": "2026-11-11T02:20:32.915Z"
+        }
+      },
+      "graph": {
+        "bytes": 5529564,
+        "nodes": 6634,
+        "links": 15263
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 1190,
+        "status": "READY",
+        "queryDurationMs": 840,
+        "matchBytes": 5816,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 1132,
+        "status": "READY",
+        "queryDurationMs": 784,
+        "matchBytes": 457,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "nestjs-core-11",
+      "technology": "nestjs",
+      "technologyVersion": "11.2.9",
+      "requestedMajor": "11",
+      "repository": "https://github.com/nestjs/nest",
+      "ref": "v11.2.9",
+      "commit": "c6cf340d071f89305236a942a9cf3bf7707849fa",
+      "subpath": "",
+      "trackedFiles": 2180,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 695
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 573,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "nestjs",
+          "requestedVersion": "11",
+          "resolvedVersion": "11.2.9",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:6afb34168b82e49e63eb8e877203d4cf8387322ba0161aa9bfb6e6c8fd9f8b16",
+          "publishedAt": "2026-11-11T02:02:19.620Z",
+          "inspectionId": "ce60413c-bd9f-4ba7-88b2-dcea3f59fb05",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "nestjs-core-11",
+          "repositoryCommit": "c6cf340d071f89305236a942a9cf3bf7707849fa",
+          "sourceFingerprint": "git-v2:5ce24308ec85e328e7d615beed81065e1b04247bdb97cfe977915fbd2bbfb55b",
+          "freshnessCheckedAt": "2026-11-11T02:20:37.416Z"
+        }
+      },
+      "graph": {
+        "bytes": 12042483,
+        "nodes": 13240,
+        "links": 28743
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 1774,
+        "status": "READY",
+        "queryDurationMs": 1423,
+        "matchBytes": 6645,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 1597,
+        "status": "READY",
+        "queryDurationMs": 1246,
+        "matchBytes": 1523,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "laravel-core-12",
+      "technology": "laravel",
+      "technologyVersion": "12.72.0",
+      "requestedMajor": "12",
+      "repository": "https://github.com/laravel/framework",
+      "ref": "v12.72.0",
+      "commit": "b089d3020e508f49b3625726ab4a2c897f1b78d5",
+      "subpath": "",
+      "trackedFiles": 3125,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 844
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 588,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "laravel",
+          "requestedVersion": "12",
+          "resolvedVersion": "12.72.0",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:472909094bdba9187eba460d3721976719adc72180b3def3b09661379a877829",
+          "publishedAt": "2026-11-11T02:02:38.558Z",
+          "inspectionId": "1430beb2-bb9f-4a66-8ee5-d90f82da77ec",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "laravel-core-12",
+          "repositoryCommit": "b089d3020e508f49b3625726ab4a2c897f1b78d5",
+          "sourceFingerprint": "git-v2:ae52d05fec01c089f2acd68ac06e735da3ae3e96a1679c4e2869a680b552d593",
+          "freshnessCheckedAt": "2026-11-11T02:20:43.115Z"
+        }
+      },
+      "graph": {
+        "bytes": 18920391,
+        "nodes": 21846,
+        "links": 42978
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 2356,
+        "status": "READY",
+        "queryDurationMs": 2013,
+        "matchBytes": 6648,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 2155,
+        "status": "READY",
+        "queryDurationMs": 1807,
+        "matchBytes": 3917,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "laravel-core-13",
+      "technology": "laravel",
+      "technologyVersion": "13.42.0",
+      "requestedMajor": "13",
+      "repository": "https://github.com/laravel/framework",
+      "ref": "v13.42.0",
+      "commit": "f5c01f6b63803f16f38ebb31622c4fea412bd022",
+      "subpath": "",
+      "trackedFiles": 3507,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 874
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 637,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "laravel",
+          "requestedVersion": "13",
+          "resolvedVersion": "13.42.0",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:dfa78dd9a7ec703294f265bce10b2be55c67e65fd5ecaa50723bab1c85dffc5f",
+          "publishedAt": "2026-11-11T02:03:00.388Z",
+          "inspectionId": "b7505688-7bef-4782-8553-1ae6cc1ed9aa",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "laravel-core-13",
+          "repositoryCommit": "f5c01f6b63803f16f38ebb31622c4fea412bd022",
+          "sourceFingerprint": "git-v2:be6edd61ef2e2f32179aff048965391a314f55c1a6eb922dbd1f9b3421edf4ea",
+          "freshnessCheckedAt": "2026-11-11T02:20:50.036Z"
+        }
+      },
+      "graph": {
+        "bytes": 20942846,
+        "nodes": 24013,
+        "links": 47778
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 2526,
+        "status": "READY",
+        "queryDurationMs": 2181,
+        "matchBytes": 6663,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 2326,
+        "status": "READY",
+        "queryDurationMs": 1967,
+        "matchBytes": 3944,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "spring-boot-core-3",
+      "technology": "spring-boot",
+      "technologyVersion": "3.5.16",
+      "requestedMajor": "3",
+      "repository": "https://github.com/spring-projects/spring-boot",
+      "ref": "v3.5.16",
+      "commit": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+      "subpath": "spring-boot-project",
+      "trackedFiles": 9113,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 1473
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 903,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "spring-boot",
+          "requestedVersion": "3",
+          "resolvedVersion": "3.5.16",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:197316669ff7d5c970e1676eb394cfd540f98949c9c5742b02dcc42bd4a6e8d7",
+          "publishedAt": "2026-11-11T02:03:54.952Z",
+          "inspectionId": "383290c0-8c5b-43eb-9fb0-a987db536edd",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "spring-boot-core-3",
+          "repositoryCommit": "0566f6933049aca6bc5ffc6d559fffade9cd2e0c",
+          "sourceFingerprint": "git-v2:229a490eae05c2a55a3e3d8506e75cbba0cd574c8562550af6f77a87fe06c24f",
+          "freshnessCheckedAt": "2026-11-11T02:20:58.257Z"
+        }
+      },
+      "graph": {
+        "bytes": 78789125,
+        "nodes": 40170,
+        "links": 117356
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 6225,
+        "status": "READY",
+        "queryDurationMs": 5881,
+        "matchBytes": 6698,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 5644,
+        "status": "READY",
+        "queryDurationMs": 5303,
+        "matchBytes": 6280,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "flutter-core-3",
+      "technology": "flutter",
+      "technologyVersion": "3.47.9",
+      "requestedMajor": "3",
+      "repository": "https://github.com/flutter/flutter",
+      "ref": "3.47.9",
+      "commit": "c197ca5199e9ee5661e865596c9c07294dfab51c",
+      "subpath": "packages/flutter",
+      "trackedFiles": 1820,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 839
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 623,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "flutter",
+          "requestedVersion": "3",
+          "resolvedVersion": "3.47.9",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:d247448a9ba77fa633f8f8fc8ee17b400ee0fbec617aa1fdd4e6c8c8cca13234",
+          "publishedAt": "2026-11-11T02:04:27.263Z",
+          "inspectionId": "d0e71444-3202-49d4-96d7-7a5abea9d714",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "flutter-core-3",
+          "repositoryCommit": "c197ca5199e9ee5661e865596c9c07294dfab51c",
+          "sourceFingerprint": "git-v2:12ef6dea60d74f78019fa444b9d493f4b0efbacc42ffa4f87b935af926d96b3b",
+          "freshnessCheckedAt": "2026-11-11T02:21:12.740Z"
+        }
+      },
+      "graph": {
+        "bytes": 23863930,
+        "nodes": 42301,
+        "links": 58429
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 3151,
+        "status": "READY",
+        "queryDurationMs": 2805,
+        "matchBytes": 6671,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 2876,
+        "status": "READY",
+        "queryDurationMs": 2531,
+        "matchBytes": 3067,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    },
+    {
+      "key": "expo-core-52",
+      "technology": "expo",
+      "technologyVersion": "52.0.49",
+      "requestedMajor": "52",
+      "repository": "https://github.com/expo/expo",
+      "ref": "sdk-52",
+      "commit": "d516432a626ef37de1ae750ffc3b47a142a63f17",
+      "subpath": "packages",
+      "trackedFiles": 12887,
+      "inspect": {
+        "exitCode": 0,
+        "wallMs": 1498
+      },
+      "reference": {
+        "exitCode": 0,
+        "wallMs": 912,
+        "body": {
+          "schema": "argens.technology-graph-reference",
+          "schemaVersion": "1.0",
+          "producer": "tech-context-graph",
+          "status": "READY",
+          "technology": "expo",
+          "requestedVersion": "52",
+          "resolvedVersion": "52.0.49",
+          "graphArtifact": "core-publication",
+          "graphSha256": "sha256:1f2f35bfbca5cd003e7f73f66e9fef9bc524257704efe315ca6babe31938d42a",
+          "publishedAt": "2026-11-11T02:06:54.385Z",
+          "inspectionId": "c63f7e56-86b8-4787-914c-032a8ad22166",
+          "graphifyVersion": "graphify 0.9.105",
+          "repositoryKey": "expo-core-52",
+          "repositoryCommit": "d516432a626ef37de1ae750ffc3b47a142a63f17",
+          "sourceFingerprint": "git-v2:3478ab0991b2a7485239e3b33a81fdbe65a2b3e6e527837ecbeca1cc3da2578c",
+          "freshnessCheckedAt": "2026-11-11T02:21:22.132Z"
+        }
+      },
+      "graph": {
+        "bytes": 70424334,
+        "nodes": 63944,
+        "links": 143706
+      },
+      "query": {
+        "exitCode": 0,
+        "wallMs": 7526,
+        "status": "READY",
+        "queryDurationMs": 7170,
+        "matchBytes": 6660,
+        "graphHashMatchesReference": true
+      },
+      "explain": {
+        "exitCode": 0,
+        "wallMs": 5787,
+        "status": "READY",
+        "queryDurationMs": 5435,
+        "matchBytes": 789,
+        "graphHashMatchesReference": true
+      },
+      "wrongMajor": {
+        "exitCode": 4,
+        "status": "MISSING",
+        "error": "VERSION_MISMATCH"
+      },
+      "outcome": "PASS"
+    }
+  ],
+  "finishedAt": "2026-11-11T02:21:36.214Z",
+  "outcome": "PASS"
+}
