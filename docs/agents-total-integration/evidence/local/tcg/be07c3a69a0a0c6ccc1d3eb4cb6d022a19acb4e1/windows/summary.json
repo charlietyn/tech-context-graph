@@ -1,0 +1,50 @@
+{
+  "sha": "be07c3a69a0a0c6ccc1d3eb4cb6d022a19acb4e1",
+  "cwd": "%TEMP%\\tcg cert 05\\via junction\\tech context graph",
+  "linkType": "Junction",
+  "realCwd": [
+    "%TEMP%\\tcg cert 05\\real checkout"
+  ],
+  "npm-ci": {
+    "exitCode": 0,
+    "seconds": 28.8
+  },
+  "lint-types": {
+    "exitCode": 0,
+    "seconds": 2.6
+  },
+  "test": {
+    "exitCode": 0,
+    "seconds": 64.2
+  },
+  "build": {
+    "exitCode": 0,
+    "seconds": 3.2
+  },
+  "smoke-contract": {
+    "exitCode": 0,
+    "seconds": 1
+  },
+  "graphify": "graphify 0.9.105",
+  "smoke-graphify-real": {
+    "exitCode": 0,
+    "seconds": 40.4
+  },
+  "smoke-crash-recovery": {
+    "exitCode": 0,
+    "seconds": 77.3
+  },
+  "node": "v24.21.0",
+  "npm": "12.1.0",
+  "git": "git version 2.48.1.windows.1",
+  "os": "Microsoft Windows 11 Enterprise Insider Preview 10.0.28120",
+  "outcome": "PASS",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\certify-windows.ps1 -Source <wsl checkout>",
+  "jest": {
+    "passed": 170,
+    "failed": 0,
+    "skipped": 0,
+    "total": 170,
+    "suites": 29
+  }
+}

@@ -2,6 +2,8 @@
 
 Ejecución del [plan 13](13-plan-ejecutable-contrato-tecnologico-y-validacion-local-2026-11-10.md), de las tareas **C1/C2 del plan 28 de PCX** y de las tres peticiones del traspaso DBIG 26 (referencia común, C1/C2, grafos de las versiones de C6). Rama `agents-total-integration`; `main` sin tocar; sin merges ni push. Solo se escribió en TCG; PCX, DBIG y UI solo se leyeron.
 
+> **Actualización 2026-11-11:** TCG-05, TCG-14 y TCG-15 pasan en `be07c3a` (Linux y Windows nativo): ver [informe 15](15-resultado-tcg-05-14-15-2026-11-11.md). Las filas de esos WP abajo reflejan el estado en `af13162`.
+
 **Código certificado: `af13162a81881c00e1b5f32b6e76130cbf727c2f`.** Evidencia: [`evidence/local/tcg/af13162…/`](evidence/local/tcg/af13162a81881c00e1b5f32b6e76130cbf727c2f/). Entorno: WSL2 Ubuntu (kernel 5.15.167.4), i7-11800H 16 hilos, 31 GiB, Node v24.20.0, npm 12.0.2, Python 3.12.3, uv 0.13.7, `graphify 0.9.105` (0.9.102 verificado aparte en un venv aislado).
 
 ## Veredicto

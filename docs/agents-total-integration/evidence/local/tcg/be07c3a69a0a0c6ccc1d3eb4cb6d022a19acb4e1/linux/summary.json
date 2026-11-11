@@ -1,0 +1,24 @@
+{
+  "sha": "be07c3a69a0a0c6ccc1d3eb4cb6d022a19acb4e1",
+  "platform": "linux (WSL2)",
+  "os": "Linux 5.15.167.4-microsoft-standard-WSL2 #1 SMP Tue Nov 5 00:21:55 UTC 2024 x86_64 GNU/Linux",
+  "node": "v24.20.0",
+  "npm": "12.0.2",
+  "git": "git version 2.43.0",
+  "graphify": "graphify 0.9.105",
+  "gates": {
+    "npm ci": 0,
+    "npm run lint:types": 0,
+    "npm run build": 0,
+    "smoke-technology-contract.cjs": 0,
+    "smoke-graphify-real.cjs": 0,
+    "smoke-crash-recovery.cjs": 0
+  },
+  "jest": {
+    "passed": 170,
+    "failed": 0,
+    "skipped": 0,
+    "total": 170,
+    "suites": 29
+  }
+}

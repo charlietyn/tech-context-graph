@@ -119,3 +119,7 @@ Mitigaciones incluidas en esta rama: rescan no sobrescribe clasificación `ACCEP
 ### R-22. Nombres ambiguos en Graphify [L] (2026-11-11)
 
 Graphify 0.9.105 sale con código 3 cuando un nombre coincide con varios nodos (p. ej. `SpringApplication`: clase y constructor) y pide el id completo. TCG lo devuelve como `FAILED/QUERY_FAILED` sin contenido (fail-closed); el consumidor debe repetir con el id del nodo. No se parsea la desambiguación.
+
+### R-23. Recuperación de locks por PID [L] (2026-11-11)
+
+`acquireLockSync` recupera el lock de un dueño muerto con `process.kill(pid, 0)`. Si el SO reutiliza ese PID para otro proceso, el lock se considera vivo y la operación devuelve `LOCKED` hasta borrar el fichero a mano. Comprobado en TCG-14: tras SIGKILL real, Linux y Windows recuperan los locks sin residuos.

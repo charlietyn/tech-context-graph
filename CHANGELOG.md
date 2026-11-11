@@ -8,6 +8,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `scripts/smoke-crash-recovery.cjs`: kills the real CLI at each step of publishing the graph pointer and verifies no READY survives a crash and recovery restores READY.
 - `technology:reference` (CONTRACT-003 `TechnologyGraphReferenceV1`): one versioned graph reference for PCX and DBIG, with JSON schema, fixtures and EN/ES documentation. Same verification and exit codes as `technology:query`, without running Graphify.
 - `scripts/build-technology-graphs.cjs` and `scripts/technology-graph-targets.v1.json`: build and certify commit-pinned core graphs for the versions DBIG announces (vite 8, nuxt 4, nestjs 11, laravel 12/13, spring-boot 3, flutter 3, expo 52).
 - Real Graphify smoke now drives the compiled CLI: nestjs 10 and 11 side by side, query/explain/path, every non-READY path with its exit code, and Ajv validation of every output.
@@ -31,6 +32,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Inspection no longer writes a graph generation through a symlink or junction that leaves the workspace (`PATH_ESCAPE`); a publication pointer that escapes its output is `INTEGRITY_FAILED` instead of `MISSING`.
 - `project:add --json` reported the detected version instead of the explicit `--technology-version`/`--package-version` it stored.
 - `repository:inspect --no-cluster` now reaches the coordinator; it was silently ignored.
 - `project:discover --apply`, `project:refresh` and `project:add` now accept the repository in the SQLite catalog instead of leaving it `DETECTED` and impossible to inspect. Scans never revive a repository you ignored; `project:add` on that explicit path does.
