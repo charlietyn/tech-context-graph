@@ -4,7 +4,7 @@ Todas son **subprocesos locales**. La aplicación en sí no abre conexiones de r
 
 ## Graphify (obligatorio para inspeccionar)
 
-- **Paquete:** `graphifyy` en PyPI, ejecutable `graphify`. Instalación: `uv tool install graphifyy`. Versión en el snapshot: 0.9.74. **No hay versión mínima declarada.**
+- **Paquete:** `graphifyy` en PyPI, ejecutable `graphify`. Instalación: `uv tool install graphifyy`. Versión fijada para contratos y smoke real: **0.9.105** (desde 2026-11-11; 0.9.102 da el mismo digest en el smoke). No hay versión mínima declarada en `package.json`: el contrato compara la versión viva con la de cada publicación y devuelve STALE si difiere.
 - **Código:** `src/services/graphify-cli.service.ts`, `src/services/technology-graph.service.ts`. El nombre `graphify` está fijo; `graphify.executable` no se usa aquí.
 
 ### Contrato de invocación
@@ -64,3 +64,9 @@ Solo como requisitos de Graphify. `doctor` comprueba `python` (`python3` fuera d
 ## ARGEns v6 TCG producer CONTRACT-002
 
 Entrada versionada (experimental en `agents-total-integration`): `tcg technology:query --json --technology nestjs --version 10 --question ...`. Contrato formal `docs/contracts/technology-context-result.v1.schema.json`; fixtures producer en `test/fixtures/contracts/technology-context/v1/`. PCX/AG consumen por proceso sin importar clases internas. No existe una API REST ni autorización multi-tenant en TCG. PCX valida contratos, autoriza workspace, interpreta `STALE|MISSING|FAILED` según política y no sustituye AC/UC por evidencia tecnológica. DeepSeek solo ejecutor bajo PCX, nunca dueño del grafo.
+
+**C1 (plan 28 PCX, 2026-11-11):** READY exige commit Git limpio dentro de la ruta de la fuente (`assertReadyProvenance` en `technology-query.service.ts`); sin Git ⇒ FAILED/INTEGRITY_FAILED, cambios sin commit ⇒ STALE/SOURCE_CHANGED. **C2:** TCG no traduce ids ni versiones; PCX pide `framework`+`frameworkVersion` del C6 (vite 8, nuxt 4…). Tabla y diferencias de ids en `docs/en/technology-contract-v1.md`.
+
+## CONTRACT-003 — referencia común de grafo
+
+`tcg technology:reference --technology <id> --version <mayor> --json` → `TechnologyGraphReferenceV1` (`src/models/technology-graph-reference.ts`, esquema `docs/contracts/technology-graph-reference.v1.schema.json`, fixtures `test/fixtures/contracts/technology-graph-reference/v1/`). Mismas comprobaciones que la query, sin ejecutar Graphify. `graphSha256` = `sha256:` + `graphHash` de la publicación **core** (no del agregado que DBIG hashea hoy). PCX la guarda en el TaskContextPack; DBIG la sella en `architecture.lock`. Ninguno importa código TCG. Grafos de las versiones de C6: `scripts/technology-graph-targets.v1.json` + `scripts/build-technology-graphs.cjs`.
