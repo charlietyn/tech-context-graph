@@ -46,7 +46,7 @@ tcg technology:reference --help
 ```
 
 ## G5
-`npm ci`, `lint:types`, `npm test` (181/181, 31 suites), `build`: 0. Smokes de contrato, Graphify real (incluye lecturas con lock retenido) y crash recovery: PASS. Evidencia en este directorio.
+`npm ci`, `lint:types`, `npm test` (181/181, 31 suites), `build`: 0. Smokes de contrato y crash recovery: PASS. Graphify real: falló una vez porque `queryDurationMs` salió negativo (`Date.now()` no es monótono y el reloj de WSL saltó); corregido con `performance.now()` en el commit siguiente y vuelto a pasar. Evidencia en este directorio.
 
 ## Pendiente
 Causa del digest distinto en Expo; Windows nativo no re-ejecutado sobre `5898199`; push y reinstalación esperan autorización.

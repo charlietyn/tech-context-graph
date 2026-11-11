@@ -131,7 +131,7 @@ export class TechnologyQueryService {
   }
 
   async run(workspace: string, input: Partial<TechnologyQueryRequestV1>): Promise<TechnologyContextResultV1> {
-    const started = Date.now();
+    const started = performance.now();
     const result = this.emptyResult(input);
     try {
       const request = normalizeTechnologyQuery(input);
@@ -156,7 +156,7 @@ export class TechnologyQueryService {
     } catch (error) {
       this.fail(result, error);
     }
-    result.queryDurationMs = Date.now() - started;
+    result.queryDurationMs = Math.max(0, Math.round(performance.now() - started)); // monotonic: wall clock may jump (WSL time sync)
     return result;
   }
 
