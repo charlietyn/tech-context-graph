@@ -121,3 +121,6 @@ temp/
 
 # Generated manual rendering intermediates, should manual/ ever be force-added.
 **/_rendered/
+
+# Real Graphify smoke evidence (local runs; never commit)
+ci-evidence/

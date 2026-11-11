@@ -1,12 +1,7 @@
 name: Graphify Real Integration (ARGEns v6)
+# Manual only: the project does not run GitHub Actions on push (owner decision 2026-11-10, PCX plan 28).
+# Certification is local and reproducible: see docs/agents-total-integration/14-*.md.
 on:
-  push:
-    branches: [agents-total-integration]
-    paths:
-      - "src/**"
-      - "scripts/smoke-graphify-real.cjs"
-      - ".github/workflows/graphify-real-integration.yml"
-      - "package-lock.json"
   workflow_dispatch:
 
 jobs:
@@ -27,7 +22,7 @@ jobs:
           enable-cache: true
       - name: Install official pinned Graphify CLI
         run: |
-          uv tool install "graphifyy==0.9.102"
+          uv tool install "graphifyy==0.9.105"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Verify graphify build
         run: graphify --version

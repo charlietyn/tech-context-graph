@@ -110,6 +110,21 @@ describe('RepositoryDiscoveryService', () => {
     expect(candidate?.markers).toContain('package-name:nextjs-project');
   });
 
+  it('keeps a Vue SPA built with Vite classified as vue (vite cores are registered explicitly)', () => {
+    const base = mkdtempSync(join(tmpdir(), 'tcg-vue-vite-'));
+    const workspace = join(base, 'workspace');
+    const app = join(base, 'apps', 'admin');
+    mkdirSync(workspace, { recursive: true });
+    mkdirSync(join(app, '.git'), { recursive: true });
+    writeFileSync(join(app, 'vite.config.ts'), 'export default {};');
+    writeFileSync(join(app, 'package.json'), JSON.stringify({
+      name: 'admin', private: true, dependencies: { vue: '^3.5.0' }, devDependencies: { vite: '^8.0.13' },
+    }));
+    const candidate = createService().detectRepository(workspace, app);
+    expect(candidate?.technology).toBe('vue');
+    expect(candidate?.artifact_kind).not.toBe('core');
+  });
+
   it('recognizes Vue core, Router and Pinia source repositories as one technology', () => {
     const base = mkdtempSync(join(tmpdir(), 'tcg-vue-family-'));
     const workspace = join(base, 'workspace');

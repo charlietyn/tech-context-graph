@@ -1,9 +1,8 @@
 name: Quality
 
+# Manual only: the project does not run GitHub Actions on push (owner decision 2026-11-10, PCX plan 28).
 on:
-  pull_request:
-  push:
-    branches: [main, agents-total-integration]
+  workflow_dispatch:
 
 jobs:
   test:

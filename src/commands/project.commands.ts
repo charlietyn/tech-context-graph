@@ -99,8 +99,8 @@ export class ProjectAddCommand extends CommandRunner {
       key, path, role, category, technology, graphOutput,
       artifactKind,
       packageName: detected?.package_name,
-      packageVersion: detected?.package_version,
-      technologyVersion: detected?.technology_version,
+      packageVersion,
+      technologyVersion,
       technologyConstraints: detected?.technology_constraints ?? [],
     };
     console.log(options.json ? JSON.stringify(result, null, 2) : `${key} registered in YAML and SQLite.`);
