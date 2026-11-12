@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "status": "FAILED",
+  "technology": "vite",
+  "requestedVersion": "8",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 61,
+  "resolvedVersion": "8.0.0",
+  "graphHash": "43d6b909facf3bdbce019b5f323358e71480c190b27d1c863bb1831321f1c16c",
+  "inspectionAt": "2026-11-11T02:18:45.746Z",
+  "freshnessCheckedAt": "2026-11-11T02:18:50.731Z",
+  "error": {
+    "code": "INTEGRITY_FAILED",
+    "retryable": false,
+    "message": "READY requires a Git commit for the technology source; this source is not a Git repository."
+  }
+}

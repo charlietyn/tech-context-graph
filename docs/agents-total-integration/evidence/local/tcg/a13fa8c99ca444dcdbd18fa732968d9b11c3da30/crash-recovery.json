@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "tcg-crash-recovery",
+  "outcome": "PASS",
+  "platform": "linux",
+  "scenarios": [
+    {
+      "point": "before-pointer-rename",
+      "crashed": {
+        "exitCode": null,
+        "signal": "SIGKILL"
+      },
+      "afterCrash": {
+        "status": "STALE",
+        "error": "STALE_GRAPH",
+        "exitCode": 3
+      },
+      "reconcile": {
+        "healed": 0,
+        "interrupted": 1
+      },
+      "afterReconcile": {
+        "status": "STALE",
+        "error": "STALE_GRAPH"
+      },
+      "recovered": {
+        "status": "READY",
+        "graphHash": "bea2a8271a7de125cc82413a14bdb893a9b4ed9eaef650a8b61e6a5f5a1651ff",
+        "commit": "59cf20aae27b3ace54c3a6d14173f6cfeffb8064"
+      },
+      "lockFilesLeft": []
+    },
+    {
+      "point": "truncated-graph-before-pointer",
+      "crashed": {
+        "exitCode": null,
+        "signal": "SIGKILL"
+      },
+      "afterCrash": {
+        "status": "STALE",
+        "error": "STALE_GRAPH",
+        "exitCode": 3
+      },
+      "reconcile": {
+        "healed": 0,
+        "interrupted": 1
+      },
+      "afterReconcile": {
+        "status": "STALE",
+        "error": "STALE_GRAPH"
+      },
+      "recovered": {
+        "status": "READY",
+        "graphHash": "bea2a8271a7de125cc82413a14bdb893a9b4ed9eaef650a8b61e6a5f5a1651ff",
+        "commit": "59cf20aae27b3ace54c3a6d14173f6cfeffb8064"
+      },
+      "lockFilesLeft": []
+    },
+    {
+      "point": "torn-pointer",
+      "crashed": {
+        "exitCode": null,
+        "signal": "SIGKILL"
+      },
+      "afterCrash": {
+        "status": "FAILED",
+        "error": "INTEGRITY_FAILED",
+        "exitCode": 2
+      },
+      "reconcile": {
+        "healed": 0,
+        "interrupted": 1
+      },
+      "afterReconcile": {
+        "status": "FAILED",
+        "error": "INTEGRITY_FAILED"
+      },
+      "recovered": {
+        "status": "READY",
+        "graphHash": "bea2a8271a7de125cc82413a14bdb893a9b4ed9eaef650a8b61e6a5f5a1651ff",
+        "commit": "59cf20aae27b3ace54c3a6d14173f6cfeffb8064"
+      },
+      "lockFilesLeft": []
+    },
+    {
+      "point": "after-pointer-rename",
+      "crashed": {
+        "exitCode": null,
+        "signal": "SIGKILL"
+      },
+      "afterCrash": {
+        "status": "STALE",
+        "error": "STALE_GRAPH",
+        "exitCode": 3
+      },
+      "reconcile": {
+        "healed": 1,
+        "interrupted": 0
+      },
+      "afterReconcile": {
+        "status": "READY"
+      },
+      "recovered": {
+        "status": "READY",
+        "graphHash": "bea2a8271a7de125cc82413a14bdb893a9b4ed9eaef650a8b61e6a5f5a1651ff",
+        "commit": "59cf20aae27b3ace54c3a6d14173f6cfeffb8064"
+      },
+      "lockFilesLeft": []
+    }
+  ],
+  "graphify": "graphify 0.9.105",
+  "tcgCommit": "a13fa8c99ca444dcdbd18fa732968d9b11c3da30"
+}

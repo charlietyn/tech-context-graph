@@ -7,11 +7,26 @@ import { StoredRepository } from '../models/repository-state';
 import { gitRoot, requireGit, runGit } from './git-access';
 import { OperationError } from './process-runner';
 
+/**
+ * A fingerprint plus the Git facts it was computed from. `gitHead`/`clean` come from the same
+ * `rev-parse`/`status` calls as the fingerprint, so provenance never needs a second, racy Git read.
+ * `clean` is scoped to `sourcePath` (a monorepo subdirectory is clean when its own subtree is).
+ */
+export interface SourceFingerprint {
+  value: string;
+  gitHead: string | null;
+  clean: boolean | null;
+}
+
 @Injectable()
 export class RepositoryFingerprintService {
   async calculate(repository: Pick<StoredRepository, 'sourcePath'>, signal?: AbortSignal): Promise<string> {
+    return (await this.describe(repository, signal)).value;
+  }
+
+  async describe(repository: Pick<StoredRepository, 'sourcePath'>, signal?: AbortSignal): Promise<SourceFingerprint> {
     const path = resolve(repository.sourcePath);
-    if (!existsSync(path)) return 'missing';
+    if (!existsSync(path)) return { value: 'missing', gitHead: null, clean: null };
     const hash = createHash('sha256').update(path);
     const root = gitRoot(path);
     if (root) {
@@ -30,7 +45,8 @@ export class RepositoryFingerprintService {
       hash.update(head).update(status.stdout);
       const excludePath = requireGit(await runGit(path, ['rev-parse', '--git-path', 'info/exclude'], { signal, timeoutMs: 15_000 }), 'Cannot resolve Git excludes');
       if (existsSync(resolve(path, excludePath))) hash.update(await readFile(resolve(path, excludePath)));
-      if (!status.stdout) return `git-v2:${hash.digest('hex')}`;
+      const gitHead = /^[a-f0-9]{40,64}$/.test(head) ? head : null;
+      if (!status.stdout) return { value: `git-v2:${hash.digest('hex')}`, gitHead, clean: true };
       const changed = await runGit(path, ['ls-files', '-z', '--modified', '--others', '--exclude-standard', '--', '.'], { signal, timeoutMs: 15_000 });
       requireGit(changed, 'Cannot enumerate changed files');
       const staged = await runGit(path, ['diff', '--cached', '--binary', '--', '.'], { signal, timeoutMs: 15_000 });
@@ -42,7 +58,7 @@ export class RepositoryFingerprintService {
         try { if ((await lstat(resolve(path, name))).isFile()) hash.update(await readFile(resolve(path, name))); }
         catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; hash.update('deleted'); }
       }
-      return `git-v2:${hash.digest('hex')}`;
+      return { value: `git-v2:${hash.digest('hex')}`, gitHead, clean: false };
     }
     const excluded = new Set(['.git', 'node_modules', 'vendor', 'dist', 'build', 'coverage', '.next', '.nuxt', '.output', '.tcg', 'graphify-out', 'tech-graphify-out']);
     const visit = async (directory: string): Promise<void> => {
@@ -56,6 +72,6 @@ export class RepositoryFingerprintService {
       }
     };
     await visit(path);
-    return `files-v2:${hash.digest('hex')}`;
+    return { value: `files-v2:${hash.digest('hex')}`, gitHead: null, clean: null };
   }
 }

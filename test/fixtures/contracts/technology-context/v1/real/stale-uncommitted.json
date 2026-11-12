@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "status": "STALE",
+  "technology": "nuxt",
+  "requestedVersion": "4",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 119,
+  "resolvedVersion": "4.0.0",
+  "graphHash": "ca3013bdd617b28935a734b71af3dfaf15bfa34a226a39b627e35be19fafb8e8",
+  "inspectionAt": "2026-11-11T02:18:44.511Z",
+  "freshnessCheckedAt": "2026-11-11T02:18:50.310Z",
+  "error": {
+    "code": "SOURCE_CHANGED",
+    "retryable": false,
+    "message": "The technology source has uncommitted or untracked changes; commit them and re-inspect before it can be READY."
+  }
+}

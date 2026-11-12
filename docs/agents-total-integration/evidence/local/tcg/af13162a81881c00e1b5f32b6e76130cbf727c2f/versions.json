@@ -1,0 +1,18 @@
+{
+  "tcg": {
+    "repo": "charlietyn/tech-context-graph",
+    "ref": "agents-total-integration",
+    "sha": "af13162a81881c00e1b5f32b6e76130cbf727c2f"
+  },
+  "node": "v24.20.0",
+  "npm": "12.0.2",
+  "python": "Python 3.12.3",
+  "uv": "uv 0.13.7 (x86_64-unknown-linux-gnu)",
+  "graphify": "graphify 0.9.105",
+  "graphifyAlsoVerified": "graphify 0.9.102 (isolated venv): real smoke PASS, identical digests",
+  "git": "git version 2.43.0",
+  "os": "Linux 5.15.167.4-microsoft-standard-WSL2 #1 SMP Tue Nov 5 00:21:55 UTC 2024 x86_64 GNU/Linux",
+  "cpu": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+  "cpus": 16,
+  "totalMemoryBytes": 33525407744
+}

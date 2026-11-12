@@ -24,6 +24,7 @@ export interface UpdateReport {
 }
 export interface UpdateOptions {
   pull?: boolean; force?: boolean; noCluster?: boolean; signal?: AbortSignal; gitConcurrency?: number;
+  allowRewriteLocalCommits?: boolean;
   onProgress?: (message: string, completed: number, total: number) => void;
 }
 
@@ -80,7 +81,7 @@ export class RepositoryUpdateService {
               const pullStarted = Date.now();
               options.onProgress?.(`${repository.key}: updating Git`, 0, accepted.length);
               try {
-                const result = await this.git.pull(repository, { signal: controller.signal });
+                const result = await this.git.pull(repository, { signal: controller.signal, allowRewriteLocalCommits: options.allowRewriteLocalCommits });
                 pulls.set(root, { result, durationMs: Date.now() - pullStarted });
                 log(`${repository.key} Git ${result.changed ? 'UPDATED' : 'UNCHANGED'} ${result.output}`);
               } catch (error) {

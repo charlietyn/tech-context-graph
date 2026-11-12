@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "status": "FAILED",
+  "technology": "nestjs",
+  "requestedVersion": "10",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 1,
+  "error": {
+    "code": "INTEGRITY_FAILED",
+    "retryable": false,
+    "message": "tampered graph"
+  }
+}

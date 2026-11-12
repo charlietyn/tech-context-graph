@@ -69,3 +69,17 @@ $env:TCG_CONFIG_HOME = "$env:TEMP\tcg-cfg"
 node dist/main.js workspace:create --path "$env:TEMP\tcg-ws" --name Prueba
 node dist/main.js repository:list --workspace "$env:TEMP\tcg-ws" --json
 ```
+
+## `technology:query` — productor ARGEns CONTRACT-002 (rama agents-total-integration)
+
+`tcg technology:query --workspace <path> --technology nestjs --version 10 --action query --question "Where is DTO validation?" --json`
+
+Devuelve un único JSON `TechnologyContextResultV1` con READY (0), STALE (3), MISSING (4), FAILED (2). Acciones `query|explain|path` (path requiere `--to`). `--revision <sha256>` fija publicación. `--version` es prefijo numérico de versión del core (no rango semver, no versión Graphify). No descarga, modifica fuentes ni actualiza Git; Graphify debe estar instalado y coincidir con la versión publicada. Contrato: `docs/contracts/technology-context-result.v1.schema.json`; guía: `docs/es/contrato-tecnologia-v1.md`. Nada de contenido Graphify se trata como instrucciones confiables.
+
+READY exige commit Git limpio (C1). Un workspace bloqueado por otra operación (p. ej. una inspección) devuelve FAILED `QUERY_FAILED` con `retryable: true`.
+
+## `technology:reference` — CONTRACT-003
+
+`tcg technology:reference --workspace <path> --technology nestjs --version 11 [--revision <hex>] --json`
+
+Un único JSON `TechnologyGraphReferenceV1`, mismos estados y códigos de salida que `technology:query`, sin ejecutar Graphify. Ver `docs/en/technology-graph-reference-v1.md`.

@@ -1,0 +1,13 @@
+{
+  "schema": "argens.technology-graph-reference",
+  "schemaVersion": "1.0",
+  "producer": "tech-context-graph",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "status": "STALE",
+  "error": {
+    "code": "STALE_GRAPH",
+    "retryable": false,
+    "message": "Repository has changed since the published inspection."
+  }
+}

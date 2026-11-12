@@ -65,3 +65,7 @@ Solo tipos, más una función pura (`candidateToStored`). No dependen de ninguna
 - **Rutas de salida:** las reubicaciones comprueban que origen y destino están dentro de la raíz gestionada. La migración 9 además comprueba `realpath` contra junctions.
 - **Perfil de ignore:** `GraphifyIgnoreService` aplica `basename()` al nombre del perfil para evitar path traversal.
 - **Sin autenticación ni roles:** el control de acceso es el del sistema operativo. El equivalente a "autorización" es el estado `ACCEPTED`.
+
+## Límite de responsabilidad ARGEns
+
+TCG es productor de contexto tecnológico versionado (consulta local, sin agentes/REST/MCP propio). PCX conserva business context, autorización, approvals, agentes, QA y Git delivery; Apps Generator es generador genérico, UI cliente del control-plane PCX. `TechnologyContextResultV1` transporta datos externos no confiables; solo `sourceRefs` verificadas permiten READY. Ningún nodo Graphify instruye al runtime, modifica UC/AC, selecciona target de generación ni concede permisos.

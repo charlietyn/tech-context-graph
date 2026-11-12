@@ -171,6 +171,8 @@ export class WorkspaceConfigService {
         code_only: true,
         force_rebuild: false,
         query_log_disabled: true,
+        query_log_max_rows: 100,
+        query_log_max_age_days: 7,
         ...(config.graphify ?? {}),
         semantic: {
           backend: 'ollama',

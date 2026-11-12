@@ -8,6 +8,21 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `scripts/smoke-crash-recovery.cjs`: kills the real CLI at each step of publishing the graph pointer and verifies no READY survives a crash and recovery restores READY.
+- `technology:reference` (CONTRACT-003 `TechnologyGraphReferenceV1`): one versioned graph reference for PCX and DBIG, with JSON schema, fixtures and EN/ES documentation. Same verification and exit codes as `technology:query`, without running Graphify.
+- `scripts/build-technology-graphs.cjs` and `scripts/technology-graph-targets.v1.json`: build and certify commit-pinned core graphs for the versions DBIG announces (vite 8, nuxt 4, nestjs 11, laravel 12/13, spring-boot 3, flutter 3, expo 52).
+- Real Graphify smoke now drives the compiled CLI: nestjs 10 and 11 side by side, query/explain/path, every non-READY path with its exit code, and Ajv validation of every output.
+
+### Changed
+
+- `technology:query` and `technology:reference` read a snapshot of the catalog without the workspace lock, so they answer while an inspection runs (R-21).
+- An ambiguous Graphify node name lists the candidate node ids in `warnings` (`AMBIGUOUS_NODE_CANDIDATES`) (R-22).
+- Operation locks detect a reused PID (Linux start time) and a stopped heartbeat (15 min) (R-23).
+- `build-technology-graphs.cjs` writes `READY.marker` only when every core passed, and checks `--revision <own digest>` per core.
+- CONTRACT-002 READY now requires a clean Git commit for the technology source (plan 28 C1): non-Git sources are `FAILED/INTEGRITY_FAILED`, sources with uncommitted changes are `STALE/SOURCE_CHANGED`. The schema stays `1.0` because it only narrows producer output.
+- A workspace locked by another TCG operation is reported as a retryable `QUERY_FAILED`.
+- Graphify pin for the real integration is `graphifyy==0.9.105`. GitHub workflows run only on manual dispatch.
+
 - Selectable **Pull latest code + update graph** action in the interactive project-detail workflow.
 - Batch **Pull latest code + update graphs** main-menu action with select-all or searchable multi-selection, failure isolation and shared-path pull deduplication.
 - `repository:review --accept-all` for accepting every currently detected candidate with per-item failure reporting.
@@ -21,6 +36,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Inspection no longer writes a graph generation through a symlink or junction that leaves the workspace (`PATH_ESCAPE`); a publication pointer that escapes its output is `INTEGRITY_FAILED` instead of `MISSING`.
+- `project:add --json` reported the detected version instead of the explicit `--technology-version`/`--package-version` it stored.
 - `repository:inspect --no-cluster` now reaches the coordinator; it was silently ignored.
 - `project:discover --apply`, `project:refresh` and `project:add` now accept the repository in the SQLite catalog instead of leaving it `DETECTED` and impossible to inspect. Scans never revive a repository you ignored; `project:add` on that explicit path does.
 - `repository:review --accept/--ignore` now organizes graph folders, restores the prior status on failure, and reports unknown IDs with exit status `1` instead of counting them as accepted.

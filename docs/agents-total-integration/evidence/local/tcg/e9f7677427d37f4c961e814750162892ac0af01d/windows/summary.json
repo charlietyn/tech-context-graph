@@ -1,0 +1,51 @@
+{
+  "sha": "e9f7677427d37f4c961e814750162892ac0af01d",
+  "cwd": "%TEMP%\\tcg cert 05\\via junction\\tech context graph",
+  "linkType": "Junction",
+  "realCwd": [
+    "%TEMP%\\tcg cert 05\\real checkout"
+  ],
+  "npm-ci": {
+    "exitCode": 0,
+    "seconds": 57.2
+  },
+  "lint-types": {
+    "exitCode": 0,
+    "seconds": 8.9
+  },
+  "test": {
+    "exitCode": 0,
+    "seconds": 116.7
+  },
+  "build": {
+    "exitCode": 0,
+    "seconds": 5.3
+  },
+  "smoke-contract": {
+    "exitCode": 0,
+    "seconds": 1.6
+  },
+  "graphify": "graphify 0.9.105",
+  "smoke-graphify-real": {
+    "exitCode": 0,
+    "seconds": 93.4
+  },
+  "smoke-crash-recovery": {
+    "exitCode": 0,
+    "seconds": 165.7
+  },
+  "node": "v24.21.0",
+  "npm": "12.1.0",
+  "git": "git version 2.48.1.windows.1",
+  "os": "Microsoft Windows 11 Enterprise Insider Preview 10.0.28120",
+  "outcome": "PASS",
+  "jest": {
+    "passed": 180,
+    "failed": 0,
+    "skipped": 1,
+    "suites": 31,
+    "skippedTests": [
+      "R-23 lock ownership beyond the PID Linux: a live PID with another start time is a reused PID, so the lock is recovered"
+    ]
+  }
+}

@@ -91,8 +91,24 @@ describe('Validated graph publication and recovery', () => {
       const publication = f.graphify.readPublication(resolve(f.root, f.repo.graphOutput));
       await f.sqlite.run(f.root, "DELETE FROM inspections WHERE id<>?", [publication.inspectionId]);
       await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [publication.inspectionId]);
+      // Recovery is allowed only after the source is restored to the exact published fingerprint.
+      writeFileSync(resolve(f.source, 'code.ts'), 'export const value = 1;');
       const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
       expect(report.healed).toHaveLength(1);
+    } finally { f.sqlite.close(); }
+  });
+
+  it('refuses to heal an interrupted READY pointer when source is now stale', async () => {
+    const f = await fixture();
+    try {
+      await f.graphify.inspect(f.root, f.repo, { deferAggregate: true });
+      const pointer = f.graphify.readPublication(resolve(f.root, f.repo.graphOutput));
+      await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [pointer.inspectionId]);
+      writeFileSync(resolve(f.source, 'code.ts'), 'export const value = 99;');
+      const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
+      expect(report.healed).toHaveLength(0);
+      expect(report.interrupted).toHaveLength(1);
+      expect((await f.store.getByKey(f.root, 'core'))?.inspectionStatus).toBe('FAILED');
     } finally { f.sqlite.close(); }
   });
 
@@ -106,6 +122,45 @@ describe('Validated graph publication and recovery', () => {
       });
       await expect(f.graphify.inspect(f.root, (await f.store.getByKey(f.root, 'core'))!, { force: true })).rejects.toThrow('nodes must be an array');
       expect(f.graphify.resolveGraphPath(resolve(f.root, f.repo.graphOutput))).toBe(first.graphPath);
+    } finally { f.sqlite.close(); }
+  });
+
+  it('TCG-14: never heals an interrupted run whose published graph is incomplete', async () => {
+    const f = await fixture();
+    try {
+      await f.graphify.inspect(f.root, f.repo, { deferAggregate: true });
+      const output = resolve(f.root, f.repo.graphOutput);
+      const pointer = f.graphify.readPublication(output);
+      await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [pointer.inspectionId]);
+      const graph = resolve(output, pointer.graph);
+      writeFileSync(graph, readFileSync(graph).subarray(0, 10));
+      const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
+      expect(report.healed).toHaveLength(0);
+      expect(report.interrupted).toHaveLength(1);
+      expect((await f.store.getByKey(f.root, 'core'))?.inspectionStatus).toBe('FAILED');
+    } finally { f.sqlite.close(); }
+  });
+
+  it('TCG-14: a torn pointer is never healed, and leftover temp pointers never become the publication', async () => {
+    const f = await fixture();
+    try {
+      await f.graphify.inspect(f.root, f.repo, { deferAggregate: true });
+      const output = resolve(f.root, f.repo.graphOutput);
+      const pointerPath = resolve(output, 'tcg-current.json');
+      const intact = readFileSync(pointerPath);
+      const pointer = JSON.parse(intact.toString('utf8'));
+      await f.sqlite.run(f.root, "UPDATE inspections SET status='RUNNING' WHERE id=?", [pointer.inspectionId]);
+      writeFileSync(pointerPath, intact.subarray(0, Math.floor(intact.length / 2)));
+      const report = await new InspectionReconcileService(f.store, f.graphify).reconcile(f.root);
+      expect(report.healed).toHaveLength(0);
+      expect((await f.store.getByKey(f.root, 'core'))?.inspectionStatus).toBe('FAILED');
+      // A crash between writeFile(temp) and rename leaves a .tmp; it is ignored and the next run republishes.
+      writeFileSync(resolve(output, 'tcg-current.json.crashed.tmp'), JSON.stringify({ ...pointer, graph: '../../../escape.json' }));
+      const recovered = await f.graphify.inspect(f.root, (await f.store.getByKey(f.root, 'core'))!, { deferAggregate: true });
+      const republished = f.graphify.readPublication(output);
+      expect(republished.graph).not.toContain('..');
+      expect(resolve(output, republished.graph)).toBe(recovered.graphPath);
+      expect((await f.store.getByKey(f.root, 'core'))?.inspectionStatus).toBe('READY');
     } finally { f.sqlite.close(); }
   });
 });

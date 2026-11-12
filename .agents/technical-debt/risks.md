@@ -107,3 +107,25 @@ El contrato de salida se apoya en regex y detección por `--help`. Un cambio de 
 ### Código sin uso [L]
 
 `WorkspaceConfigService.configureStart`, `WorkspaceResolverService.requirePath`, opción `allowLastShortcut`, `describeRepositoryPull`, `invalidateVersion`, tabla `settings`, estados `REJECTED` y `MISSING` de catálogo.
+
+## Seguimiento de riesgos en `agents-total-integration` (no borrar evidencias originales)
+
+Mitigaciones incluidas en esta rama: rescan no sobrescribe clasificación `ACCEPTED`; claves nuevas colisionadas adquieren sufijo determinista; query CLI sin persistencia de prompts; TUI almacena queries solo por opt-in explícito; lectura versionada de Graphify verifica publicación, integridad, commit/fingerprint y SQLite; pruebas unit no requieren binario Graphify. Riesgos aún por certificar: E2E de Graphify real, integración de fixtures con consumidores PCX/AG, límites de ejecución/sandbox multi-tenant fuera del repositorio, limpieza configurable de generaciones/logs y políticas de consentimiento Git divergente. Cada mitigación se debe corroborar con GitHub Actions en SHA concreto.
+
+### R-21. Lecturas de contrato bloqueadas durante inspecciones — **MITIGADO 2026-11-11 (`5898199`)**
+
+`SqliteDatabaseService.open` toma el lock del workspace durante toda la vida del proceso. Un `technology:query`/`technology:reference` lanzado mientras otro proceso inspecciona falla con `QUERY_FAILED` `retryable: true` (antes `retryable: false`). Mitigación pendiente: lectura de un snapshot inmutable del catálogo sin lock exclusivo. Los consumidores (PCX) deben reintentar con backoff o tratarlo como DEGRADED/BLOCKED según su política.
+
+### R-22. Nombres ambiguos en Graphify — **MITIGADO 2026-11-11 (`5898199`)**
+
+Graphify 0.9.105 sale con código 3 cuando un nombre coincide con varios nodos (p. ej. `SpringApplication`: clase y constructor) y pide el id completo. TCG lo devuelve como `FAILED/QUERY_FAILED` sin contenido (fail-closed); el consumidor debe repetir con el id del nodo. No se parsea la desambiguación.
+
+### R-23. Recuperación de locks por PID — **MITIGADO 2026-11-11 (`5898199`)**
+
+`acquireLockSync` recupera el lock de un dueño muerto con `process.kill(pid, 0)`. Si el SO reutiliza ese PID para otro proceso, el lock se considera vivo y la operación devuelve `LOCKED` hasta borrar el fichero a mano. Comprobado en TCG-14: tras SIGKILL real, Linux y Windows recuperan los locks sin residuos.
+
+#### Estado de R-21/R-22/R-23 tras `5898199`
+
+- **R-21:** `technology:query`/`technology:reference` leen una instantánea del catálogo persistido (`SqliteDatabaseService.readSnapshot`, `RepositoryStoreService.listSnapshot`) sin el lock del workspace; las escrituras usan temporal + `rename`, así que la instantánea es siempre un commit completo. Nunca migra ni escribe: un catálogo sin migrar ⇒ FAILED `QUERY_FAILED` no reintentable. Todo lo que sostiene un READY se reverifica desde disco (puntero, digest, fingerprint, commit). Una inspección que publica justo entre la instantánea y el puntero da STALE (fail-closed). Pruebas: `test/catalog-snapshot-read.spec.ts` y el smoke real (lock retenido por otro proceso ⇒ query y reference READY, escritor rechazado). Las demás órdenes siguen usando el lock exclusivo.
+- **R-22:** salida `Ambiguous:` de Graphify ⇒ FAILED `QUERY_FAILED` (enum sin cambios) con `warnings: ["AMBIGUOUS_NODE_CANDIDATES: id1, id2"]`, solo ids que cumplen `^[A-Za-z0-9_.:-]{1,200}$`, máximo 10. Probado con la salida real de Spring Boot 3.5.16 en el workspace persistente.
+- **R-23:** el lock guarda `startTicks` (Linux, `/proc/<pid>/stat`) y `heartbeat: true`; el dueño toca el mtime cada 30 s. Se recupera si el PID no existe, si existe con otro `startTicks` (PID reutilizado) o si declara latido y lleva 15 min sin tocarse (Windows). Locks de versiones antiguas sin latido mantienen la regla solo-PID. Pruebas: `test/operation-lock-recovery.spec.ts`. Límite: un dueño vivo con el event loop bloqueado más de 15 min perdería el lock; ninguna operación de TCG bloquea tanto (Graphify corre en un proceso hijo).

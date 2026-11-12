@@ -75,3 +75,7 @@ Los comandos Git usan el default de `runProcess`, 120 s, sin configuración posi
 ## Prohibido en este flujo
 
 `git clean`, `git stash`, `reset --hard`, merge automático, configuración global de Git, `safe.directory=*`, descartar cambios locales del usuario.
+
+## Consentimiento explícito para historial divergente (rama agents-total-integration)
+
+El coordinador rechaza la reescritura de commits locales por defecto con código `REWRITE_CONSENT_REQUIRED`. Solo el CLI permite activarla para una ejecución con `repository:inspect ... --pull --allow-rewrite-local-commits`; TUI y otros callers no tienen opt-in tácito. Los backups históricos siguen siendo obligatorios. Contract query v1 no altera repositorios de origen.

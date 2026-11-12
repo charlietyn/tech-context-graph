@@ -1,0 +1,45 @@
+name: Graphify Real Integration (ARGEns v6)
+# Manual only: the project does not run GitHub Actions on push (owner decision 2026-11-10, PCX plan 28).
+# Certification is local and reproducible: see docs/agents-total-integration/14-*.md.
+on:
+  workflow_dispatch:
+
+jobs:
+  graphify-code-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GRAPHIFY_BACKEND: none
+      GRAPHIFY_QUERY_LOG_DISABLE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install official pinned Graphify CLI
+        run: |
+          uv tool install "graphifyy==0.9.105"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Verify graphify build
+        run: graphify --version
+      - name: Install and compile TCG
+        run: |
+          npm ci
+          npm run build
+      - name: Real Graphify extraction, published pointer and query contract
+        run: node scripts/smoke-graphify-real.cjs
+      - name: Real crash recovery around pointer publication (TCG-14)
+        run: node scripts/smoke-crash-recovery.cjs
+      - name: Publish sanitized integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcg-graphify-real-evidence
+          path: |
+            ci-evidence/graphify-smoke.json
+            ci-evidence/crash-recovery.json
+          if-no-files-found: ignore

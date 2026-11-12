@@ -1,4 +1,5 @@
 import { acquireLockSync } from '../services/operation-lock';
+import { OperationError } from '../services/process-runner';
 import { Injectable } from '@nestjs/common';
 import initSqlJs, { Database, SqlJsStatic } from 'sql.js';
 import { createRequire } from 'node:module';
@@ -91,6 +92,29 @@ export class SqliteDatabaseService {
 
   async get<T>(workspaceRoot: string, sql: string, params: unknown[] = []): Promise<T | undefined> {
     return (await this.all<T>(workspaceRoot, sql, params))[0];
+  }
+
+  /**
+   * R-21: read-only query over a snapshot of the persisted catalog, WITHOUT the workspace lock.
+   * Writers persist with temp file + rename, so the file read here is always one complete commit.
+   * Never migrates and never writes: a catalog not yet migrated by this build fails with
+   * SCHEMA_OUTDATED instead of being changed by a reader. A missing catalog has no rows.
+   */
+  async readSnapshot<T>(workspaceRoot: string, sql: string, params: unknown[] = []): Promise<T[]> {
+    const target = this.resolveDatabasePath(workspaceRoot);
+    if (!existsSync(target)) return [];
+    this.sql ??= await initSqlJs({ locateFile: (file) => nodeRequire.resolve(`sql.js/dist/${file}`) });
+    const snapshot = new this.sql.Database(readFileSync(target));
+    try {
+      if (!this.migrations.isCurrent(snapshot)) {
+        throw new OperationError('SCHEMA_OUTDATED', 'The workspace catalog has not been migrated by this TCG version.');
+      }
+      const statement = snapshot.prepare(sql, params as any[]);
+      const rows: T[] = [];
+      try { while (statement.step()) rows.push(statement.getAsObject() as T); }
+      finally { statement.free(); }
+      return rows;
+    } finally { snapshot.close(); }
   }
 
   getPath(workspaceRoot: string): string {

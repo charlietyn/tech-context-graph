@@ -1,9 +1,8 @@
 name: Quality
 
+# Manual only: the project does not run GitHub Actions on push (owner decision 2026-11-10, PCX plan 28).
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -35,3 +34,6 @@ jobs:
 
       - name: CLI smoke test
         run: node dist/main.js --help
+
+      - name: CONTRACT-002 CLI JSON smoke test
+        run: node scripts/smoke-technology-contract.cjs

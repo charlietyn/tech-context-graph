@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
+import { resolve, relative, sep, isAbsolute } from 'node:path';
 import { acquireLock } from './operation-lock';
 import { RepositoryStoreService } from '../persistence/repository-store.service';
 import { GraphifyCliService } from './graphify-cli.service';
 import { resolveGraphOutput } from './graph-output-path';
+import { RepositoryFingerprintService } from './repository-fingerprint.service';
 
 export interface ReconcileEntry {
   repoKey: string;
@@ -29,6 +30,7 @@ export class InspectionReconcileService {
   constructor(
     private readonly store: RepositoryStoreService,
     private readonly graphify: GraphifyCliService,
+    private readonly fingerprints: RepositoryFingerprintService = new RepositoryFingerprintService(),
   ) {}
 
   async reconcile(workspaceRoot: string): Promise<ReconcileReport> {
@@ -44,13 +46,23 @@ export class InspectionReconcileService {
 
     for (const entry of candidates) {
       const output = resolveGraphOutput(workspaceRoot, entry.graphOutput);
-      const graphPath = this.graphify.resolveGraphPath(output);
       const publication = this.graphify.readPublication(output);
-      const matching = publication?.inspectionId === entry.inspectionId && publication.fingerprint === entry.sourceFingerprint
-        && existsSync(graphPath) && publication.graphDigest === createHash('sha256').update(await readFile(graphPath)).digest('hex');
+      const graphPath = this.resolveImmutableGraph(output, publication);
+      const repository = await this.store.getById(workspaceRoot, entry.repositoryId);
+      let sourceMatches = false;
+      if (repository && publication?.fingerprint === entry.sourceFingerprint) {
+        try {
+          sourceMatches = await this.fingerprints.calculate(repository) === entry.sourceFingerprint;
+        } catch { /* A source that cannot be verified must not be healed. */ }
+      }
+      const matching = graphPath && sourceMatches &&
+        publication?.inspectionId === entry.inspectionId &&
+        publication?.fingerprint === entry.sourceFingerprint &&
+        /^[a-f0-9]{64}$/.test(publication.graphDigest ?? '') &&
+        publication.graphDigest === createHash('sha256').update(await readFile(graphPath)).digest('hex');
       const validCounts = matching ? this.tryCount(graphPath) : undefined;
 
-      if (validCounts && validCounts.danglingEdges === 0) {
+      if (graphPath && validCounts && validCounts.danglingEdges === 0) {
         await this.store.completeInspection(workspaceRoot, entry.inspectionId, {
           status: 'READY',
           graphJsonPath: graphPath,
@@ -81,6 +93,22 @@ export class InspectionReconcileService {
       }
     }
     return report;
+  }
+
+  /** A reconciliation may only heal the exact immutable generation referenced by schema v2. */
+  private resolveImmutableGraph(output: string, pointer: any): string | undefined {
+    if (pointer?.schema !== 2 || typeof pointer.graph !== 'string' || isAbsolute(pointer.graph)) return undefined;
+    const root = resolve(output, '.generations');
+    const graphPath = resolve(output, pointer.graph);
+    const inside = (base: string, target: string) => {
+      const part = relative(base, target);
+      return part.length > 0 && part !== '..' && !part.startsWith('..' + sep) && !isAbsolute(part);
+    };
+    if (!inside(root, graphPath) || !existsSync(root) || !existsSync(graphPath)) return undefined;
+    try {
+      if (!inside(realpathSync(root), realpathSync(graphPath))) return undefined;
+    } catch { return undefined; }
+    return graphPath;
   }
 
   private tryCount(graphPath: string): { nodes: number; edges: number; danglingEdges: number } | undefined {

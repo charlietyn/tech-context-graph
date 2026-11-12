@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "status": "STALE",
+  "technology": "nestjs",
+  "requestedVersion": "11",
+  "sourceRefs": [],
+  "matches": [],
+  "warnings": [],
+  "queryDurationMs": 84,
+  "resolvedVersion": "11.1.0",
+  "error": {
+    "code": "STALE_GRAPH",
+    "retryable": false,
+    "message": "Repository has changed since the published inspection."
+  }
+}

@@ -62,3 +62,7 @@
 | `technology.json`, `aggregate.json` | `schemaVersion: '2.0'` |
 | Registro | `version: 1` |
 | Fingerprint | Prefijo `git-v2:` o `files-v2:` |
+
+## Publicaciones ARGEns v1 como evidencia técnica
+
+`tcg-current.json` schema 2 apunta a `.generations/<inspectionId>/graphify-out/graph.json` inmutable y contiene `graphDigest` SHA256, `inspectionId`, `fingerprint`, `graphifyVersion`, `publishedAt`. `PublishedGraphResolverService` compara bytes, path real dentro de workspace, última fila SQLite READY, fingerprint actual y commit Git. `TechnologyContextResultV1.sourceRefs[]` NO equivale a path o líneas fuente citadas. `technology.json` v2 de TCG NO es `AG tech-graph metadata v1` ni capability hash C6.

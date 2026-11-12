@@ -60,3 +60,7 @@ Graphify además respeta el `.graphifyignore` del propio repositorio, que entra 
 | `Invalid graph...` | Grafo mal formado | `FAILED` |
 
 **Sin `--no-cluster`, `noCluster` debe quedar `undefined`.** Pasar `false` cambia el hash de configuración (`noCluster ?? 'auto-10000'`) y re-extrae todos los grafos.
+
+## Contención de la salida (TCG-15, 2026-11-11)
+
+`GraphifyCliService.inspect` llama a `assertGraphOutputContained` (`src/services/graph-output-path.ts`) antes de tomar el lock: si la salida está dentro del workspace por nombre pero un symlink o junction la lleva fuera en disco, falla con `PATH_ESCAPE` sin escribir nada. Las salidas absolutas configuradas a propósito fuera del workspace no cambian (y nunca son servibles por el contrato v1). En lectura, `PublishedGraphResolverService` devuelve `INTEGRITY_FAILED` si la salida, `.generations`, la generación, `graph.json` o el puntero escapan.
