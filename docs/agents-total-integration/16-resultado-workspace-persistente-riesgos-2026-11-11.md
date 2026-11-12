@@ -1,6 +1,6 @@
 # ARGEns v6 — TCG · Workspace persistente de C6 y riesgos R-21/22/23 (2026-11-11)
 
-Código: `5898199` (R-21/22/23) + `a13fa8c` (script de construcción). Sin push, `tcg` global sin reinstalar.
+**SHA certificado: `e9f7677`** (R-21/22/23 en `5898199`, script de construcción en `a13fa8c`, duración monótona en `e9f7677`). Evidencia Linux y Windows nativo en [`evidence/local/tcg/e9f7677…/`](evidence/local/tcg/). Sin push y sin reinstalar el `tcg` global.
 
 **Workspace:** `~/.argens/tcg-workspace` · fuentes `~/.argens/tcg-sources`. **Leer solo si existe `READY.marker`** (se borra al empezar una construcción y se escribe solo si todos los cores pasan). Construido con `dist` de `a13fa8c`, Graphify 0.9.105.
 
@@ -18,8 +18,15 @@ Código: `5898199` (R-21/22/23) + `a13fa8c` (script de construcción). Sin push,
 
 Por core (G2): `technology:reference` READY, mayor+100 ⇒ MISSING (exit 4), `technology:query --revision <digest>` ⇒ READY con ese digest, query y explain READY. Spring Boot: `explain SpringApplication` ⇒ FAILED con `AMBIGUOUS_NODE_CANDIDATES` (R-22 con datos reales).
 
-## Reproducibilidad (hallazgo)
-7/9 digests idénticos a construcciones anteriores en otra ruta. **Flutter difiere**: Graphify incluye la ruta absoluta de la fuente en el id de nodo de las extensiones anónimas de Dart (2 nodos, 4 aristas), así que el digest depende de la ruta del checkout. **Expo difiere** con nodos y aristas idénticos como conjuntos: causa sin investigar (pendiente). El digest válido es el del workspace que se consulta; los consumidores no deben comparar digests entre workspaces.
+## Reproducibilidad: causa raíz (Graphify, no TCG)
+
+7 de 9 digests coinciden con construcciones anteriores hechas en otra ruta; Flutter y Expo no. Investigado hasta la causa:
+
+- **Expo:** mismo conjunto de nodos y aristas; difieren 44 posiciones de aristas, siempre pares adyacentes de llamadas desde la misma línea (`EXAVPlayerData.m L129`, `L583`).
+- **Flutter:** además, 2 nodos y 4 aristas difieren porque Graphify crea nodos externos para imports no resueltos con un id que **incluye la ruta absoluta del checkout** (`…_home_charlietyn_argens_tcg_sources_…`).
+- Experimento controlado con `expo-av`: la misma copia extraída 5 veces (paralelo y `--max-workers 1`) da siempre el mismo digest; `PYTHONHASHSEED` fijo o aleatorio, ctime y orden de `readdir` **no** influyen; el árbol de una copia colocado en la ruta de la otra da exactamente el digest de esa ruta. **La salida de Graphify 0.9.105 es una función determinista de la ruta absoluta de la fuente.**
+
+Consecuencias: un grafo es reproducible bit a bit si se reconstruye **en la misma ruta** (por eso las fuentes viven en `~/.argens/tcg-sources`); entre rutas o máquinas el digest puede cambiar aunque el commit sea el mismo. El contrato no se ve afectado: el digest identifica la publicación del workspace que se consulta y los consumidores fijan `--revision` contra ese workspace, nunca contra otro. Posibles mejoras (no hechas): JSON canónico ordenado antes de publicar (resolvería el orden, no los ids con ruta) y reportarlo a Graphify.
 
 ## R-21/R-22/R-23
 Mitigados en `5898199`; detalle y pruebas en `.agents/technical-debt/risks.md`.
@@ -30,7 +37,7 @@ En WSL, `tcg` resuelve hoy al shim de Windows antiguo y `technology:reference --
 Linux:
 ```bash
 git clone --no-checkout ~/projects/argens/tech-context-graph ~/.local/opt/tech-context-graph
-cd ~/.local/opt/tech-context-graph && git checkout --detach a13fa8c
+cd ~/.local/opt/tech-context-graph && git checkout --detach e9f7677
 npm ci && npm run build && npm link && hash -r
 command -v tcg   # debe ser ~/.nvm/versions/node/v24.20.0/bin/tcg
 tcg technology:reference --workspace ~/.argens/tcg-workspace --technology nestjs --version 11 --json; echo $?   # 0 READY
@@ -39,14 +46,25 @@ tcg technology:reference --workspace ~/.argens/tcg-workspace --technology nestjs
 Windows (PowerShell):
 ```powershell
 git -c safe.directory=* clone --no-checkout \\wsl.localhost\Ubuntu-24.04\home\charlietyn\projects\argens\tech-context-graph C:\Tools\tech-context-graph
-cd C:\Tools\tech-context-graph; git -c safe.directory=* checkout --detach a13fa8c
+cd C:\Tools\tech-context-graph; git -c safe.directory=* checkout --detach e9f7677
 npm ci; npm run build; npm unlink -g tech-context-graph; npm link
 tcg technology:reference --help
 # rollback: npm unlink -g tech-context-graph; cd D:\Proyectos\Grapify\tech-context-graph; npm link
 ```
 
-## G5
-`npm ci`, `lint:types`, `npm test` (181/181, 31 suites), `build`: 0. Smokes de contrato y crash recovery: PASS. Graphify real: falló una vez porque `queryDurationMs` salió negativo (`Date.now()` no es monótono y el reloj de WSL saltó); corregido con `performance.now()` en el commit siguiente y vuelto a pasar. Evidencia en este directorio.
+## G5 (en `e9f7677`)
+
+| Puerta | Linux (WSL2) | Windows nativo (ruta con espacios + junction) |
+|---|---|---|
+| `npm ci` / `lint:types` / `build` | 0 / 0 / 0 | 0 / 0 / 0 |
+| `npm test` | 181/181, 31 suites | 180/180 + 1 omitido (PID reutilizado, solo Linux por diseño) |
+| `smoke-technology-contract.cjs` | PASS | PASS |
+| `smoke-graphify-real.cjs` | PASS (incluye query/reference READY con el lock retenido por otro proceso) | PASS (idem) |
+| `smoke-crash-recovery.cjs` | PASS 4/4 | PASS 4/4, mismo digest recuperado |
+
+Defecto encontrado y corregido durante G5: `queryDurationMs` se medía con `Date.now()` (no monótono); un ajuste del reloj de WSL produjo una duración negativa que viola el esquema. `e9f7677` usa `performance.now()`.
 
 ## Pendiente
-Causa del digest distinto en Expo; Windows nativo no re-ejecutado sobre `5898199`; push y reinstalación esperan autorización.
+
+- Push de la rama y reinstalación del `tcg` global: esperan tu autorización.
+- Opcional: JSON canónico antes de publicar e informe a Graphify sobre la dependencia de la ruta.
